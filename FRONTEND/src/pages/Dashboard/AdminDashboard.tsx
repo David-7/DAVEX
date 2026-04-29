@@ -151,6 +151,77 @@ export default function AdminDashboard() {
             <LessonUnits isAdmin={true} />
           </div>
         )}
+
+        {activeView === "students" && (
+          <div className="technical-card overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-text-dim uppercase text-[10px] tracking-[0.2em] border-b border-border">
+                <tr>
+                  <th className="pb-4">Operator</th>
+                  <th className="pb-4">ID</th>
+                  <th className="pb-4">Package</th>
+                  <th className="pb-4">Access</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {["Alex Johnson", "Sarah Lee", "Michael Chen"].map((name, i) => (
+                  <tr key={i} className="hover:bg-white/5">
+                    <td className="py-4 font-bold">{name}</td>
+                    <td className="py-4 font-mono text-xs">DVX-00{i+1}-ST</td>
+                    <td className="py-4">
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/20 text-primary rounded">PREMIUM</span>
+                    </td>
+                    <td className="py-4">
+                      <button className="text-[10px] font-bold uppercase text-primary hover:underline">Revoke</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeView === "prizes" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="technical-card bg-primary/10 border-primary">
+              <h4 className="text-primary font-bold mb-2 uppercase text-xs tracking-widest">Active Flash Prize</h4>
+              <p className="text-2xl font-bold mb-4">5GB DATA COUPON</p>
+              <button className="w-full bg-primary text-black font-bold py-2 rounded text-[10px] uppercase tracking-widest">DEPLOY NEW PRIZE</button>
+            </div>
+            <div className="technical-card border-dashed">
+              <button className="w-full h-full flex flex-col items-center justify-center gap-3 text-text-dim hover:text-white transition-all">
+                <Plus className="w-8 h-8" />
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em]">Queue Reward</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeView === "sessions" && (
+          <div className="technical-card">
+            <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Upcoming Syncs</h3>
+            <div className="space-y-4">
+              {[
+                { date: "May 01", title: "Advanced Linux Mastery", venue: "Lab 4", mentor: "Dave" },
+                { date: "May 05", title: "Cloud Architecture", venue: "Zoom 01", mentor: "Sarah" },
+              ].map((s, i) => (
+                <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-black/40 border border-border rounded-lg gap-4">
+                  <div className="flex items-center gap-6">
+                    <div className="text-center min-w-[60px]">
+                      <span className="text-xs text-text-dim block uppercase font-mono">{s.date.split(' ')[0]}</span>
+                      <span className="text-xl font-bold">{s.date.split(' ')[1]}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white">{s.title}</h4>
+                      <p className="text-[10px] text-text-dim uppercase font-mono">{s.venue} • Mentor: {s.mentor}</p>
+                    </div>
+                  </div>
+                  <button className="text-xs font-bold text-primary hover:underline uppercase tracking-widest font-mono">Reschedule</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

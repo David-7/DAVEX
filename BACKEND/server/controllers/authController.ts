@@ -10,6 +10,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   admissionNumber: z.string().regex(/^\d{3}[A-Z]\/\d{4}$/, "Use format 025J/1600"),
+  package: z.enum(["BASIC", "PREMIUM"]).optional(),
 });
 
 export const register = async (req: Request, res: Response) => {

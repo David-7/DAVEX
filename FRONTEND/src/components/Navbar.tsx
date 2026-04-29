@@ -15,30 +15,51 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
   };
 
   const navLinks = [
-    { name: "Home", path: "/" },
-    { name: "About", path: "/about" },
-    { name: "Packages", path: "/packages" },
-    { name: "Contact", path: "/contact" },
+    { name: "Home", path: "/#home" },
+    { name: "About", path: "/#about" },
+    { name: "Packages", path: "/#packages" },
+    { name: "Contact", path: "/#contact" },
   ];
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (path.startsWith("/#")) {
+      const id = path.substring(2);
+      const element = document.getElementById(id);
+      if (element) {
+        e.preventDefault();
+        element.scrollIntoView({ behavior: "smooth" });
+        window.history.pushState(null, "", path);
+        setIsOpen(false);
+      }
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 group">
-            <img src="/logo.png" alt="DAVEX" className="w-auto h-8" />
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded flex items-center justify-center font-black text-black text-xl italic shadow-[0_0_15px_rgba(0,184,81,0.3)]">
+                D
+              </div>
+              <span className="font-bold text-xl tracking-tighter text-white group-hover:text-primary transition-colors">
+                DAVEX
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <Link 
+              <a 
                 key={link.name} 
-                to={link.path} 
+                href={link.path}
+                onClick={(e) => handleNavClick(e, link.path)}
                 className="text-text-dim hover:text-primary transition-colors text-xs font-bold uppercase tracking-widest"
               >
                 {link.name}
-              </Link>
+              </a>
             ))}
             
             {user ? (
@@ -83,14 +104,14 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
             className="md:hidden bg-shiny-black border-b border-white/10 px-4 py-6 flex flex-col gap-4"
           >
             {navLinks.map((link) => (
-              <Link 
+              <a 
                 key={link.name} 
-                to={link.path} 
-                onClick={() => setIsOpen(false)}
-                className="text-gray-300 py-2 border-b border-white/5"
+                href={link.path} 
+                onClick={(e) => handleNavClick(e, link.path)}
+                className="text-gray-300 py-2 border-b border-white/5 uppercase font-mono text-xs tracking-widest"
               >
                 {link.name}
-              </Link>
+              </a>
             ))}
             {user ? (
               <>

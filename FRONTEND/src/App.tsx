@@ -5,9 +5,6 @@ import { API_ROOT } from "./config";
 import Navbar from "./components/Navbar.tsx";
 import Footer from "./components/Footer.tsx";
 import Home from "./pages/Home.tsx";
-import About from "./pages/About.tsx";
-import Packages from "./pages/Packages.tsx";
-import Contact from "./pages/Contact.tsx";
 import Login from "./pages/Login.tsx";
 import Register from "./pages/Register.tsx";
 import ForgotPassword from "./pages/ForgotPassword.tsx";
@@ -37,7 +34,7 @@ export default function App() {
     checkAuth();
   }, []);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-primary">Loading...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-primary font-mono uppercase tracking-[0.2em]">Initializing_Davex_OS...</div>;
 
   return (
     <BrowserRouter>
@@ -46,9 +43,6 @@ export default function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/packages" element={<Packages />} />
-            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login setUser={setUser} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

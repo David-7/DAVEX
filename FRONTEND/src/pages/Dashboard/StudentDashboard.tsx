@@ -268,6 +268,29 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
               </table>
             </motion.div>
           )}
+
+          {activeTab === "materials" && (
+            <motion.div key="materials" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { title: "Linux Mastery PDF", size: "4.2 MB", type: "PDF", date: "Apr 20" },
+                { title: "Network Config Guide", size: "1.8 MB", type: "DOCX", date: "Apr 18" },
+                { title: "Cheat Sheet: NMAP", size: "512 KB", type: "IMAGE", date: "Apr 25" },
+              ].map((m, i) => (
+                <div key={i} className="technical-card flex items-center justify-between group cursor-pointer hover:border-primary transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/5 rounded text-primary group-hover:bg-primary group-hover:text-black transition-all">
+                      <Download className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white mb-1">{m.title}</h4>
+                      <p className="text-[10px] text-text-dim uppercase font-mono">{m.type} • {m.size}</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-text-dim group-hover:text-white" />
+                </div>
+              ))}
+            </motion.div>
+          )}
         </AnimatePresence>
 
       </div>
