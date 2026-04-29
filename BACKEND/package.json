@@ -5,6 +5,7 @@
   "scripts": {
     "start": "tsx server.ts",
     "dev": "tsx server.ts",
+    "seed": "tsx server/seed.ts",
     "build": "echo 'No build step required for backend'"
   },
   "dependencies": {

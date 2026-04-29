@@ -4,8 +4,9 @@ import { API_ROOT } from "../../config";
 import { 
   Users, BookOpen, Trophy, CreditCard, Plus, 
   Settings, Search, ArrowUpRight, Check, X,
-  LayoutDashboard, List, Gift, Calendar
+  LayoutDashboard, List, Gift, Calendar, FileText
 } from "lucide-react";
+import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
 
 export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("overview");
@@ -41,6 +42,7 @@ export default function AdminDashboard() {
           <h4 className="text-[10px] text-text-dim uppercase tracking-[0.3em] font-bold mb-6">Control Center</h4>
           {[
             { id: "overview", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+            { id: "lessons", label: "Lessons", icon: <FileText className="w-4 h-4" /> },
             { id: "students", label: "Students", icon: <Users className="w-4 h-4" /> },
             { id: "courses", label: "Learning Paths", icon: <BookOpen className="w-4 h-4" /> },
             { id: "skill-battle", label: "Skill Battle", icon: <Trophy className="w-4 h-4" /> },
@@ -141,6 +143,12 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeView === "lessons" && (
+          <div className="max-w-4xl">
+            <LessonUnits isAdmin={true} />
           </div>
         )}
       </div>

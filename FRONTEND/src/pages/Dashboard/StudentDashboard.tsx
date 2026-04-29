@@ -6,6 +6,7 @@ import {
   ExternalLink, Download, MessageSquare, History, Gift
 } from "lucide-react";
 import ProgressChart from "../../components/Dashboard/ProgressChart.tsx";
+import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
 import toast from "react-hot-toast";
 import { API_ROOT } from "../../config";
 
@@ -168,6 +169,17 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                   <p className="text-[10px] text-text-dim mt-2 uppercase tracking-tighter">{stat.sub}</p>
                 </div>
               ))}
+            </motion.div>
+          )}
+
+          {activeTab === "courses" && (
+            <motion.div 
+              key="courses"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-4xl"
+            >
+              <LessonUnits isAdmin={false} />
             </motion.div>
           )}
 

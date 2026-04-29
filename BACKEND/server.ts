@@ -9,6 +9,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./server/routes/authRoutes.ts";
 import dashboardRoutes from "./server/routes/dashboardRoutes.ts";
+import lessonRoutes from "./server/routes/lessonRoutes.ts";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ async function startServer() {
   // API Routes
   app.use("/api/auth", authRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/lessons", lessonRoutes);
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", time: new Date().toISOString() });

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx BACKEND/server.ts",
+    "seed": "npm run seed --prefix BACKEND",
     "build": "npm run build --prefix FRONTEND && npm run build --prefix BACKEND",
     "preview": "vite preview",
     "clean": "rm -rf dist",
