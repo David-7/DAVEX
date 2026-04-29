@@ -4,7 +4,8 @@ import { API_ROOT } from "../../config";
 import { 
   Users, BookOpen, Trophy, CreditCard, Plus, 
   Settings, Search, ArrowUpRight, Check, X,
-  LayoutDashboard, List, Gift, Calendar, FileText
+  LayoutDashboard, List, Gift, Calendar, FileText,
+  MessageSquare
 } from "lucide-react";
 import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
 
@@ -44,8 +45,9 @@ export default function AdminDashboard() {
             { id: "overview", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
             { id: "lessons", label: "Lessons", icon: <FileText className="w-4 h-4" /> },
             { id: "students", label: "Students", icon: <Users className="w-4 h-4" /> },
-            { id: "courses", label: "Learning Paths", icon: <BookOpen className="w-4 h-4" /> },
+            { id: "payments", label: "Payments", icon: <CreditCard className="w-4 h-4" /> },
             { id: "skill-battle", label: "Skill Battle", icon: <Trophy className="w-4 h-4" /> },
+            { id: "chat", label: "Messenger", icon: <MessageSquare className="w-4 h-4" /> },
             { id: "prizes", label: "Rewards", icon: <Gift className="w-4 h-4" /> },
             { id: "sessions", label: "Schedule", icon: <Calendar className="w-4 h-4" /> },
           ].map((item) => (
@@ -219,6 +221,72 @@ export default function AdminDashboard() {
                   <button className="text-xs font-bold text-primary hover:underline uppercase tracking-widest font-mono">Reschedule</button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeView === "payments" && (
+          <div className="technical-card">
+            <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Payment Verification Terminal</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-text-dim uppercase text-[10px] tracking-widest border-b border-border">
+                  <tr>
+                    <th className="pb-4 pt-2">Learner</th>
+                    <th className="pb-4 pt-2">Ref ID</th>
+                    <th className="pb-4 pt-2">Amount</th>
+                    <th className="pb-4 pt-2">Method</th>
+                    <th className="pb-4 pt-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {[
+                    { name: "John Doe", ref: "QRS123456", amount: "KSH 250", method: "M-PESA" },
+                    { name: "Jane Smith", ref: "PAY-998877", amount: "KSH 250", method: "PAYPAL" },
+                  ].map((p, i) => (
+                    <tr key={i} className="hover:bg-white/5">
+                      <td className="py-4 font-bold">{p.name}</td>
+                      <td className="py-4 font-mono text-xs">{p.ref}</td>
+                      <td className="py-4 font-mono">{p.amount}</td>
+                      <td className="py-4 text-[10px] font-bold">{p.method}</td>
+                      <td className="py-4">
+                        <div className="flex gap-2">
+                          <button className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
+                          <button className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === "chat" && (
+          <div className="technical-card h-[500px] flex flex-col p-0 overflow-hidden">
+            <div className="flex-grow p-6 overflow-y-auto space-y-4">
+              <div className="text-center py-4">
+                <span className="text-[10px] text-text-dim font-bold uppercase tracking-widest bg-white/5 px-3 py-1 rounded">Moderation Mode Active</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-xs italic">D</div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-white italic">DAVE (MENTOR)</span>
+                    <span className="text-[9px] text-text-dim uppercase font-mono">15:30</span>
+                  </div>
+                  <div className="bg-white/5 border border-border p-3 rounded-lg rounded-tl-none text-sm text-gray-300 max-w-md">
+                    System-wide announcement: New skill battle launching at 17:00 UTC. Prepare your Linux kernels.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border bg-black">
+              <div className="flex gap-2">
+                <input type="text" placeholder="GLOBAL_BROADCAST..." className="flex-grow bg-white/5 border border-border rounded p-3 text-xs font-mono focus:border-primary focus:outline-none" />
+                <button className="bg-primary text-black px-6 rounded font-bold text-xs uppercase tracking-widest hover:bg-white transition-all">Submit</button>
+              </div>
             </div>
           </div>
         )}

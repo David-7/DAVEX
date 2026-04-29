@@ -47,3 +47,31 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.bg-dot-grid {
+  background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.glass-panel {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.skill-battle-gradient {
+  background: linear-gradient(135deg, #0a0a0a 0%, #050505 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.skill-battle-gradient::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at top right, rgba(0, 184, 81, 0.05), transparent);
+  pointer-events: none;
+}

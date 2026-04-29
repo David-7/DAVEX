@@ -137,7 +137,7 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
 
         {/* Navigation Tabs */}
         <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-          {["overview", "courses", "skill-battle", "materials", "schedule"].map((tab) => (
+          {["overview", "courses", "skill-battle", "materials", "schedule", "chat", "leaderboard"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -289,6 +289,89 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                   <ExternalLink className="w-4 h-4 text-text-dim group-hover:text-white" />
                 </div>
               ))}
+            </motion.div>
+          )}
+
+          {activeTab === "chat" && (
+            <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[500px]">
+              <div className="lg:col-span-1 border border-border rounded-xl bg-black/40 p-4 overflow-y-auto">
+                <h3 className="text-[10px] font-bold text-text-dim uppercase tracking-widest mb-4">Channels</h3>
+                <div className="space-y-2 text-xs font-mono">
+                  <button className="w-full text-left p-2 rounded bg-primary/10 text-primary border border-primary/20"># general-comms</button>
+                  <button className="w-full text-left p-2 rounded hover:bg-white/5 transition-all"># skill-battle-talk</button>
+                  <button className="w-full text-left p-2 rounded hover:bg-white/5 transition-all"># linux-mastery</button>
+                  <button className="w-full text-left p-2 rounded hover:bg-white/5 transition-all"># job-readiness</button>
+                </div>
+              </div>
+              <div className="lg:col-span-3 border border-border rounded-xl bg-black/20 flex flex-col">
+                <div className="flex-grow p-6 overflow-y-auto space-y-4">
+                  {[
+                    { user: "Dave (Mentor)", msg: "Welcome to the Linux Mastery session! Any issues with the root partition challenge?", time: "10:05", isMe: false },
+                    { user: "You", msg: "Checking the inodes now, think I found the leak.", time: "10:12", isMe: true },
+                    { user: "Sarah Lee", msg: "I'm seeing high context switching in the logs, could that be it?", time: "10:14", isMe: false },
+                  ].map((m, i) => (
+                    <div key={i} className={`flex flex-col ${m.isMe ? 'items-end' : 'items-start'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {!m.isMe && <span className="text-[10px] font-bold text-primary uppercase">{m.user}</span>}
+                        <span className="text-[9px] text-text-dim font-mono">{m.time}</span>
+                      </div>
+                      <div className={`p-3 rounded-lg text-sm ${m.isMe ? 'bg-primary/20 border border-primary/30 text-white rounded-tr-none' : 'bg-white/5 border border-border text-gray-300 rounded-tl-none'}`}>
+                        {m.msg}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 border-t border-border">
+                  <div className="relative">
+                    <input type="text" placeholder="TRANSMIT_MESSAGE..." className="w-full bg-black border border-border rounded p-3 text-xs font-mono focus:border-primary focus:outline-none" />
+                    <button className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-white"><Zap className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === "leaderboard" && (
+            <motion.div key="leaderboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl mx-auto space-y-6">
+              <div className="technical-card p-0 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-white/5 text-[10px] font-bold uppercase tracking-widest text-text-dim border-b border-border">
+                    <tr>
+                      <th className="p-6">Rank</th>
+                      <th className="p-6">Learner</th>
+                      <th className="p-6">Badges</th>
+                      <th className="p-6">Points</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {[
+                      { rank: 1, name: "Sarah Jenkins", points: 2840, badges: 12 },
+                      { rank: 2, name: "Marcus Vane", points: 2610, badges: 9 },
+                      { rank: 3, name: "You", points: 2550, badges: 15, isMe: true },
+                      { rank: 4, name: "Lee Chen", points: 2400, badges: 7 },
+                      { rank: 5, name: "Alex Riv", points: 2100, badges: 5 },
+                    ].map((p, i) => (
+                      <tr key={i} className={`hover:bg-white/5 transition-all ${p.isMe ? 'bg-primary/5' : ''}`}>
+                        <td className="p-6 font-mono text-primary text-xl font-bold">#{p.rank}</td>
+                        <td className="p-6 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">{p.name[0]}</div>
+                          <span className={p.isMe ? 'font-bold text-white' : 'text-gray-300'}>{p.name} {p.isMe && '(YOU)'}</span>
+                        </td>
+                        <td className="p-6">
+                          <div className="flex gap-1">
+                            {Array.from({ length: Math.min(3, p.badges) }).map((_, i) => (
+                              <div key={i} className="w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(0,184,81,0.4)]">
+                                <Trophy className="w-2 h-2 text-black" />
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-6 font-mono text-xl">{p.points.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
