@@ -1,4 +1,13 @@
 node_modules/
+**/node_modules/
+dist/
+build/
+.env
+BACKEND/.env
+*.log
+package-lock.json
+/.idea
+.vscodenode_modules/
 build/
 dist/
 coverage/
