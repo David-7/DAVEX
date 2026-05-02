@@ -100,8 +100,17 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Stop the process using that port or set a different PORT environment variable.`);
+      process.exit(1);
+    }
+    console.error('Server error:', err);
+    process.exit(1);
   });
 }
 
