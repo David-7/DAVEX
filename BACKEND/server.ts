@@ -3,17 +3,17 @@ import path from "path";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+// rateLimit is configured in middleware; avoid unused import here
 import cors from "cors";
 import dotenv from "dotenv";
-import authRoutes from "./server/routes/authRoutes.ts";
-import dashboardRoutes from "./server/routes/dashboardRoutes.ts";
-import lessonRoutes from "./server/routes/lessonRoutes.ts";
+import authRoutes from "./server/routes/authRoutes";
+import dashboardRoutes from "./server/routes/dashboardRoutes";
+import lessonRoutes from "./server/routes/lessonRoutes";
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import csurf from 'csurf';
-import sanitizeBody from './server/middleware/sanitize.ts';
-import { authLimiter, generalLimiter } from './server/middleware/rateLimiters.ts';
+import sanitizeBody from './server/middleware/sanitize';
+import { authLimiter, generalLimiter } from './server/middleware/rateLimiters';
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ if (!MONGODB_URI) {
   console.error('MONGODB_URI is not set in environment. Set MONGODB_URI in .env or environment variables.');
   process.exit(1);
 }
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 async function startServer() {
   const app = express();
@@ -64,11 +64,11 @@ async function startServer() {
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/lessons", lessonRoutes);
-  app.use("/api/skills", (await import('./server/routes/skillRoutes.ts')).default);
-  app.use("/api/flash", (await import('./server/routes/flashRoutes.ts')).default);
-  app.use("/api/payments", (await import('./server/routes/paymentRoutes.ts')).default);
-  app.use("/api/transactions", (await import('./server/routes/transactionRoutes.ts')).default);
-  app.use('/api/users', (await import('./server/routes/userRoutes.ts')).default);
+  app.use("/api/skills", (await import('./server/routes/skillRoutes')).default);
+  app.use("/api/flash", (await import('./server/routes/flashRoutes')).default);
+  app.use("/api/payments", (await import('./server/routes/paymentRoutes')).default);
+  app.use("/api/transactions", (await import('./server/routes/transactionRoutes')).default);
+  app.use('/api/users', (await import('./server/routes/userRoutes')).default);
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", time: new Date().toISOString() });
