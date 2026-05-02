@@ -24,7 +24,7 @@ async function seed() {
     await User.create({
       name: "Dave Admin",
       email: "wanbrossmedia@gmail.com",
-      password: process.env.SEED_USER_PASSWORD || "ChangeMe123!",
+      password: process.env.SEED_USER_PASSWORD || "DavexLms##.7",
       role: "ADMIN",
       admissionNumber: "000A/1000",
       package: "PREMIUM"
