@@ -6,14 +6,14 @@ import helmet from "helmet";
 // rateLimit is configured in middleware; avoid unused import here
 import cors from "cors";
 import dotenv from "dotenv";
-import authRoutes from "./server/routes/authRoutes";
-import dashboardRoutes from "./server/routes/dashboardRoutes";
-import lessonRoutes from "./server/routes/lessonRoutes";
+import authRoutes from "./server/routes/authRoutes.js";
+import dashboardRoutes from "./server/routes/dashboardRoutes.js";
+import lessonRoutes from "./server/routes/lessonRoutes.js";
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import csurf from 'csurf';
-import sanitizeBody from './server/middleware/sanitize';
-import { authLimiter, generalLimiter } from './server/middleware/rateLimiters';
+import sanitizeBody from './server/middleware/sanitize.js';
+import { authLimiter, generalLimiter } from './server/middleware/rateLimiters.js';
 
 dotenv.config();
 
@@ -64,11 +64,11 @@ async function startServer() {
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/lessons", lessonRoutes);
-  app.use("/api/skills", (await import('./server/routes/skillRoutes')).default);
-  app.use("/api/flash", (await import('./server/routes/flashRoutes')).default);
-  app.use("/api/payments", (await import('./server/routes/paymentRoutes')).default);
-  app.use("/api/transactions", (await import('./server/routes/transactionRoutes')).default);
-  app.use('/api/users', (await import('./server/routes/userRoutes')).default);
+  app.use("/api/skills", (await import('./server/routes/skillRoutes.js')).default);
+  app.use("/api/flash", (await import('./server/routes/flashRoutes.js')).default);
+  app.use("/api/payments", (await import('./server/routes/paymentRoutes.js')).default);
+  app.use("/api/transactions", (await import('./server/routes/transactionRoutes.js')).default);
+  app.use('/api/users', (await import('./server/routes/userRoutes.js')).default);
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", time: new Date().toISOString() });
