@@ -14,9 +14,12 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
     e.preventDefault();
     setLoading(true);
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken || '' },
         body: JSON.stringify(formData),
       });
       const data = await res.json();

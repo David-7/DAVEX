@@ -13,14 +13,23 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("overview");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [manualEmail, setManualEmail] = useState('');
+  const [manualAmount, setManualAmount] = useState(250);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const res = await fetch(`${API_ROOT}/api/dashboard/admin/summary`);
+        const res = await fetch(`${API_ROOT}/api/dashboard/admin/summary`, { credentials: 'include' });
         if (res.ok) {
           setData(await res.json());
         }
+        const pRes = await fetch(`${API_ROOT}/api/transactions/manual/pending`, { credentials: 'include' });
+        if (pRes.ok) setPendingPayments(await pRes.json());
+        const uRes = await fetch(`${API_ROOT}/api/users`, { credentials: 'include' });
+        if (uRes.ok) setUsers(await uRes.json());
       } catch (err) {
         console.error("Admin data fetch failed", err);
       } finally {
@@ -33,7 +42,6 @@ export default function AdminDashboard() {
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center font-mono text-primary uppercase tracking-[0.3em]">Accessing_Admin_Core_Node...</div>;
 
   const stats = data?.stats || [];
-  const pendingPayments = data?.pendingPayments || [];
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#E0E0E0] flex">
@@ -107,22 +115,56 @@ export default function AdminDashboard() {
             <div className="technical-card">
               <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Payment Queue <span className="text-primary font-mono ml-2">● {pendingPayments.length} Pending</span></h3>
               <div className="space-y-0 divide-y divide-border">
-                {pendingPayments.map((p: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between py-4">
+                {pendingPayments.length === 0 && <div className="p-6 text-text-dim">No pending manual payments.</div>}
+                {pendingPayments.map((p: any) => (
+                  <div key={p._id} className="flex items-center justify-between py-4">
                     <div>
-                      <p className="text-[13px] font-medium text-white">{p.name}</p>
-                      <p className="font-mono text-[10px] text-text-dim uppercase mt-1">{p.type} • ${p.amount}</p>
+                      <p className="text-[13px] font-medium text-white">{p.user?.name || p.user?.email || 'Unknown'}</p>
+                      <p className="font-mono text-[10px] text-text-dim uppercase mt-1">MANUAL • {p.amount} {p.currency}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all">
+                      <button onClick={async () => {
+                        const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                        const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+                        if (res.ok) { toast.success('Marked paid'); setPendingPayments(prev => prev.filter(x => x._id !== p._id)); }
+                        else toast.error('Failed');
+                      }} className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all">
                         <Check className="w-3 h-3" />
                       </button>
-                      <button className="p-2 border border-border rounded hover:bg-red-500/10 hover:text-red-500 transition-all">
+                      <button onClick={async () => {
+                        if (!confirm('Reject and remove this pending payment?')) return;
+                        const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                        const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+                        if (res.ok) { toast.success('Removed'); setPendingPayments(prev => prev.filter(x => x._id !== p._id)); }
+                        else toast.error('Failed');
+                      }} className="p-2 border border-border rounded hover:bg-red-500/10 hover:text-red-500 transition-all">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="technical-card">
+              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Create Manual Payment</h3>
+              <div className="space-y-4">
+                <select value={selectedUserId} onChange={(e)=>setSelectedUserId(e.target.value)} className="w-full p-3 bg-black border border-border rounded">
+                  <option value="">Select user</option>
+                  {users.map(u => (
+                    <option key={u._id} value={u._id}>{u.name} • {u.email}</option>
+                  ))}
+                </select>
+                <input value={manualAmount} onChange={(e)=>setManualAmount(parseFloat(e.target.value))} type="number" className="w-full p-3 bg-black border border-border rounded" />
+                <div className="flex gap-2">
+                  <button onClick={async ()=>{
+                    if (!selectedUserId) return toast.error('Select a user');
+                    const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                    const res = await fetch(`${API_ROOT}/api/transactions/manual/create/${selectedUserId}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ amount: manualAmount }) });
+                    if (res.ok) { toast.success('Transaction created'); const tx = await res.json(); setPendingPayments(prev=>[tx,...prev]); setSelectedUserId(''); }
+                    else { const err = await res.json(); toast.error(err.message||'Failed'); }
+                  }} className="bg-primary text-black px-6 py-2 rounded">Create</button>
+                </div>
               </div>
             </div>
 

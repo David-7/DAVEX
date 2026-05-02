@@ -9,7 +9,14 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await fetch(`${API_ROOT}/api/auth/logout`, { method: "POST" });
+    // include CSRF token for logout
+    try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
+      await fetch(`${API_ROOT}/api/auth/logout`, { method: "POST", credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+    } catch (err) {
+      await fetch(`${API_ROOT}/api/auth/logout`, { method: "POST" });
+    }
     setUser(null);
     navigate("/");
   };

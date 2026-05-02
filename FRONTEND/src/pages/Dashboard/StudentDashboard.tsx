@@ -21,8 +21,8 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
     const fetchData = async () => {
       try {
         const [dashRes, sessionRes] = await Promise.all([
-          fetch(`${API_ROOT}/api/dashboard/student/summary`),
-          fetch(`${API_ROOT}/api/dashboard/sessions`)
+          fetch(`${API_ROOT}/api/dashboard/student/summary`, { credentials: 'include' }),
+          fetch(`${API_ROOT}/api/dashboard/sessions`, { credentials: 'include' })
         ]);
         
         if (dashRes.ok) setDashboardData(await dashRes.json());
@@ -35,6 +35,32 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
     };
     fetchData();
   }, []);
+
+  function RedeemForm() {
+    const [code, setCode] = useState('');
+    const [busy, setBusy] = useState(false);
+    const handleRedeem = async () => {
+      if (!code) return toast.error('Enter code');
+      setBusy(true);
+      try {
+        const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+        const { csrfToken } = await tokenRes.json();
+        const res = await fetch(`${API_ROOT}/api/transactions/redeem-code`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ code }) });
+        const data = await res.json();
+        if (res.ok) { toast.success(data.message || 'Redeemed'); window.location.reload(); }
+        else toast.error(data.message || 'Redeem failed');
+      } catch (err) { toast.error('Redeem error'); }
+      finally { setBusy(false); }
+    };
+    return (
+      <div className="space-y-3">
+        <input value={code} onChange={(e)=>setCode(e.target.value)} placeholder="Enter redeem code" className="w-full p-3 bg-black border border-border rounded" />
+        <div className="flex gap-2">
+          <button onClick={handleRedeem} disabled={busy} className="bg-primary text-black px-6 py-2 rounded">Redeem</button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center font-mono text-primary">INITIALIZING_SECURE_WORKSPACE...</div>;
 
@@ -132,6 +158,12 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
             <div className={`bg-primary/10 border border-primary text-primary px-3 py-1 rounded text-[10px] font-bold tracking-widest uppercase mt-4 ${dashboardData?.profile?.package === 'PREMIUM' ? 'opacity-100' : 'opacity-40'}`}>
               DAVEX {dashboardData?.profile?.package}
             </div>
+            {dashboardData?.profile?.package === 'BASIC' && (
+              <div className="technical-card max-w-md mt-4">
+                <h4 className="text-[11px] text-text-dim uppercase tracking-widest mb-2">Redeem Manual Payment Code</h4>
+                <RedeemForm />
+              </div>
+            )}
           </motion.div>
         </div>
 

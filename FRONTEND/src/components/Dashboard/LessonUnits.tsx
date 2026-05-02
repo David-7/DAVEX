@@ -20,7 +20,7 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
 
   const fetchLessons = async () => {
     try {
-      const res = await fetch(`${API_ROOT}/api/lessons`);
+      const res = await fetch(`${API_ROOT}/api/lessons`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setLessons(data);
@@ -39,9 +39,12 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/lessons`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken || '' },
         body: JSON.stringify(newLesson)
       });
       if (res.ok) {
@@ -57,8 +60,12 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
 
   const handleComplete = async (id: string) => {
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/lessons/${id}/complete`, {
-        method: "PATCH"
+        method: "PATCH",
+        credentials: 'include',
+        headers: { 'x-csrf-token': csrfToken || '' }
       });
       if (res.ok) {
         toast.success("Unit marked as completed");
@@ -72,8 +79,12 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this lesson unit?")) return;
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/lessons/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        credentials: 'include',
+        headers: { 'x-csrf-token': csrfToken || '' }
       });
       if (res.ok) {
         toast.success("Lesson removed");

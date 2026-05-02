@@ -18,9 +18,12 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/auth/reset-identity`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken || '' },
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
@@ -41,9 +44,12 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/auth/reset-identity`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken || '' },
         body: JSON.stringify({ email, admissionNumber }),
       });
       const data = await res.json();
@@ -68,9 +74,12 @@ export default function ForgotPassword() {
     }
     setLoading(true);
     try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/auth/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken || '' },
         body: JSON.stringify({ email, admissionNumber, newPassword }),
       });
       const data = await res.json();

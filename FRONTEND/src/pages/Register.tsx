@@ -28,9 +28,13 @@ export default function Register({ setUser }: { setUser: (user: any) => void }) 
 
     setLoading(true);
     try {
+      // fetch CSRF token and include credentials
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
       const res = await fetch(`${API_ROOT}/api/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken || '' },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
