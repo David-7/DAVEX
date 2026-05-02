@@ -17,7 +17,11 @@ import { authLimiter, generalLimiter } from './server/middleware/rateLimiters.ts
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://davex-db:DavexDbpassWord.com%237@davex.igh0zu5.mongodb.net/?appName=DAVEX";
+const MONGODB_URI = process.env.MONGODB_URI || '';
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set in environment. Set MONGODB_URI in .env or environment variables.');
+  process.exit(1);
+}
 const PORT = 3000;
 
 async function startServer() {

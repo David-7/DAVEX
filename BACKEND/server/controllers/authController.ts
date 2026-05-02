@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken";
 import { User } from "../models/User.ts";
 import { z } from "zod";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-this-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || '';
+if (!JWT_SECRET) {
+  console.error('JWT_SECRET is not set in environment. Set JWT_SECRET in .env or environment variables.');
+  process.exit(1);
+}
 
 const registerSchema = z.object({
   name: z.string().min(2),

@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User.ts";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-this-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || '';
+if (!JWT_SECRET) {
+  console.error('JWT_SECRET is not set in environment. Set JWT_SECRET in .env or environment variables.');
+  process.exit(1);
+}
 
 export const protect = async (req: any, res: Response, next: NextFunction) => {
   try {
