@@ -1,6 +1,9 @@
 import express from "express";
 import { protect, authorize } from "../middleware/auth.js";
 import { SkillBattle } from "../models/SkillBattle.js";
+import { Submission } from "../models/Submission.js";
+import { Points } from "../models/Points.js";
+import { User } from "../models/User.js";
 
 const router = express.Router();
 
@@ -36,11 +39,67 @@ router.post('/:id/submit', protect, async (req, res) => {
     if (now < battle.startAt || now >= battle.expireAt) {
       return res.status(403).json({ message: 'This skill battle is not open for submissions' });
     }
-    // Store submissions in a proper collection (omitted here) and notify admin for manual evaluation
-    res.json({ message: 'Submission received. Await mentor evaluation.' });
+    const user = (req as any).user;
+    const { answer } = req.body;
+    const sub = await Submission.create({ battle: battle._id, user: user._id, answer, status: 'pending' });
+    res.status(201).json({ message: 'Submission received. Await mentor evaluation.', submissionId: sub._id });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
+});
+
+// Admin: list submissions for a battle
+router.get('/:id/submissions', protect, authorize('ADMIN'), async (req, res) => {
+  try {
+    const subs = await Submission.find({ battle: req.params.id }).populate('user', 'name email').sort({ createdAt: -1 });
+    res.json(subs);
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// Admin: list recent submissions across all battles
+router.get('/submissions', protect, authorize('ADMIN'), async (req, res) => {
+  try {
+    const subs = await Submission.find().populate('user', 'name email').populate('battle', 'title').sort({ createdAt: -1 }).limit(100);
+    res.json(subs);
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// Student: list my submissions
+router.get('/my-submissions', protect, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const subs = await Submission.find({ user: user._id }).populate('battle', 'title startAt expireAt points').sort({ createdAt: -1 });
+    res.json(subs);
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// Admin: evaluate a submission (accept/reject). If accepted, award points.
+router.post('/:id/submissions/:sid/evaluate', protect, authorize('ADMIN'), async (req, res) => {
+  try {
+    const { action } = req.body; // 'accept' or 'reject'
+    const sub = await Submission.findById(req.params.sid);
+    if (!sub) return res.status(404).json({ message: 'Submission not found' });
+    if (sub.status !== 'pending') return res.status(400).json({ message: 'Submission already evaluated' });
+    if (action === 'accept') {
+      sub.status = 'accepted';
+      sub.evaluatedBy = (req as any).user._id;
+      sub.evaluatedAt = new Date();
+      await sub.save();
+
+      const battle = await SkillBattle.findById(req.params.id);
+      const award = (battle && battle.points && battle.points > 0) ? battle.points : 5;
+      await Points.create({ user: sub.user, points: award, reason: 'skill-battle-win' });
+      await User.findByIdAndUpdate(sub.user, { $inc: { points: award } });
+
+      return res.json({ message: 'Submission accepted and points awarded', points: award });
+    } else {
+      sub.status = 'rejected';
+      sub.evaluatedBy = (req as any).user._id;
+      sub.evaluatedAt = new Date();
+      await sub.save();
+      return res.json({ message: 'Submission rejected' });
+    }
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
 
 export default router;

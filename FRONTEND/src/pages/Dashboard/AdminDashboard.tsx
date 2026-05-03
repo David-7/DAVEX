@@ -8,12 +8,20 @@ import {
   MessageSquare
 } from "lucide-react";
 import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
+import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("overview");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [showNewEntityModal, setShowNewEntityModal] = useState(false);
+  const [newPrizeTitle, setNewPrizeTitle] = useState('');
+  const [newPrizeCode, setNewPrizeCode] = useState('');
+  const [newPrizeRevealAt, setNewPrizeRevealAt] = useState('');
+  const [newPrizeExpiry, setNewPrizeExpiry] = useState(3600);
+  const [newPrizeSingleWinner, setNewPrizeSingleWinner] = useState(true);
   const [manualEmail, setManualEmail] = useState('');
   const [manualAmount, setManualAmount] = useState(250);
   const [users, setUsers] = useState<any[]>([]);
@@ -30,6 +38,11 @@ export default function AdminDashboard() {
         if (pRes.ok) setPendingPayments(await pRes.json());
         const uRes = await fetch(`${API_ROOT}/api/users`, { credentials: 'include' });
         if (uRes.ok) setUsers(await uRes.json());
+        // fetch recent submissions
+        try {
+          const sRes = await fetch(`${API_ROOT}/api/skill/submissions`, { credentials: 'include' });
+          if (sRes.ok) setBattleSubmissions(await sRes.json());
+        } catch (err) { console.warn('Failed fetching submissions', err); }
       } catch (err) {
         console.error("Admin data fetch failed", err);
       } finally {
@@ -38,6 +51,7 @@ export default function AdminDashboard() {
     };
     fetchAdminData();
   }, []);
+  const [battleSubmissions, setBattleSubmissions] = useState<any[]>([]);
 
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center font-mono text-primary uppercase tracking-[0.3em]">Accessing_Admin_Core_Node...</div>;
 
@@ -74,14 +88,106 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Content */}
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 lg:hidden">
+          <div className="w-64 bg-[#050505] h-full p-6 border-r border-border">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-[10px] text-text-dim uppercase tracking-[0.3em] font-bold">Control Center</h4>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-2 border border-border rounded">Close</button>
+            </div>
+            {[
+              { id: "overview", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+              { id: "lessons", label: "Lessons", icon: <FileText className="w-4 h-4" /> },
+              { id: "students", label: "Students", icon: <Users className="w-4 h-4" /> },
+              { id: "payments", label: "Payments", icon: <CreditCard className="w-4 h-4" /> },
+              { id: "skill-battle", label: "Skill Battle", icon: <Trophy className="w-4 h-4" /> },
+              { id: "chat", label: "Messenger", icon: <MessageSquare className="w-4 h-4" /> },
+              { id: "prizes", label: "Rewards", icon: <Gift className="w-4 h-4" /> },
+              { id: "sessions", label: "Schedule", icon: <Calendar className="w-4 h-4" /> },
+            ].map((item) => (
+              <button key={item.id} onClick={() => { setActiveView(item.id); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-4 px-0 py-3 text-xs font-bold transition-all uppercase tracking-widest ${activeView === item.id ? "text-primary" : "text-text-dim hover:text-white"}`}>
+                <span className="w-6">{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* New Entity Modal */}
+      {showNewEntityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-lg bg-[#050505] border border-border p-6 rounded">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold">Create New Entity</h4>
+              <button onClick={() => setShowNewEntityModal(false)} className="p-2 border border-border rounded">Close</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-text-dim uppercase">Type</label>
+                <select value={'flash'} disabled className="w-full p-3 bg-black border border-border rounded mt-1">
+                  <option value="flash">Flash Prize</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-text-dim uppercase">Title</label>
+                <input value={newPrizeTitle} onChange={(e)=>setNewPrizeTitle(e.target.value)} className="w-full p-3 bg-black border border-border rounded mt-1" />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-dim uppercase">Code (optional)</label>
+                <input value={newPrizeCode} onChange={(e)=>setNewPrizeCode(e.target.value)} className="w-full p-3 bg-black border border-border rounded mt-1" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-text-dim uppercase">Reveal At (ISO)</label>
+                  <input value={newPrizeRevealAt} onChange={(e)=>setNewPrizeRevealAt(e.target.value)} placeholder="2026-05-03T17:00:00Z" className="w-full p-3 bg-black border border-border rounded mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs text-text-dim uppercase">Expiry Seconds</label>
+                  <input type="number" value={newPrizeExpiry} onChange={(e)=>setNewPrizeExpiry(parseInt(e.target.value||'0'))} className="w-full p-3 bg-black border border-border rounded mt-1" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input id="singleWinner" type="checkbox" checked={newPrizeSingleWinner} onChange={(e)=>setNewPrizeSingleWinner(e.target.checked)} />
+                <label htmlFor="singleWinner" className="text-xs text-text-dim uppercase">Single Winner</label>
+              </div>
+
+              <div className="flex justify-end">
+                <button onClick={async ()=>{
+                  if (!newPrizeTitle) return toast.error('Title required');
+                  try {
+                    const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+                    const { csrfToken } = await tokenRes.json();
+                    const body = { title: newPrizeTitle, code: newPrizeCode || undefined, revealAt: newPrizeRevealAt || new Date().toISOString(), expirySeconds: newPrizeExpiry, singleWinner: newPrizeSingleWinner };
+                    const res = await fetch(`${API_ROOT}/api/flash`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify(body) });
+                    if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); return toast.error(err.message||'Failed'); }
+                    const prize = await res.json();
+                    toast.success('Flash prize created');
+                    setShowNewEntityModal(false);
+                    setNewPrizeTitle(''); setNewPrizeCode(''); setNewPrizeRevealAt(''); setNewPrizeExpiry(3600);
+                  } catch (err) { console.error(err); toast.error('Request failed'); }
+                }} className="bg-primary px-6 py-2 rounded font-bold text-black">Create</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex-grow p-4 md:p-8 pt-16 md:pt-24 space-y-8">
         <div className="flex flex-col md:flex-row items-start justify-between gap-6">
           <div>
             <h1 className="text-3xl font-normal tracking-tight">Admin Workspace</h1>
             <div className="font-mono text-[11px] text-text-dim uppercase mt-1">Status: Global Commander • Node: DVX-ROOT</div>
           </div>
-          <div className="flex gap-3">
-            <button className="bg-primary/5 text-primary border border-primary/20 px-6 py-2 rounded text-[11px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-primary hover:text-black transition-all">
+          <div className="flex gap-3 items-center">
+            <button onClick={() => setMobileMenuOpen(true)} className="md:hidden p-2 border border-border rounded hover:bg-white/5">
+              <List className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowNewEntityModal(true)} className="hidden md:inline-flex bg-primary/5 text-primary border border-primary/20 px-6 py-2 rounded text-[11px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-primary hover:text-black transition-all">
               <Plus className="w-4 h-4" />
               NEW ENTITY
             </button>
@@ -171,17 +277,40 @@ export default function AdminDashboard() {
             <div className="technical-card">
               <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Battle Submissions</h3>
               <div className="space-y-0 divide-y divide-border">
-                {[
-                  { name: "Kevin Hart", battle: "Networking Lab", date: "2h ago" },
-                  { name: "Diana Rose", battle: "Linux CLI", date: "5h ago" },
-                ].map((s, i) => (
-                  <div key={i} className="py-4 group cursor-pointer">
+                {battleSubmissions.length === 0 && <div className="p-6 text-text-dim">No recent submissions.</div>}
+                {battleSubmissions.map((s: any) => (
+                  <div key={s._id} className="py-4 group">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[13px] font-medium text-white group-hover:text-primary transition-colors">{s.name}</p>
-                        <p className="font-mono text-[10px] text-text-dim uppercase mt-1">{s.battle} • {s.date}</p>
+                        <p className="text-[13px] font-medium text-white">{s.user?.name || s.user?.email || 'Unknown'}</p>
+                        <p className="font-mono text-[10px] text-text-dim uppercase mt-1">{s.battle?.title || 'Unknown Battle'} • {new Date(s.createdAt).toLocaleString()}</p>
+                        <p className="text-sm mt-2 text-gray-300 max-w-xl whitespace-pre-wrap">{String(s.answer).slice(0, 800)}</p>
                       </div>
-                      <ArrowUpRight className="w-3 h-3 text-text-dim group-hover:text-primary transition-all" />
+                      <div className="flex gap-2">
+                        <button onClick={async ()=>{
+                          if (!confirm('Accept this submission and award points?')) return;
+                          try {
+                            const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                            const res = await fetch(`${API_ROOT}/api/skill/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'accept' }) });
+                            const data = await res.json();
+                            if (res.ok) { toast.success(data.message || 'Accepted'); setBattleSubmissions(prev=>prev.filter(x=>x._id!==s._id)); }
+                            else { toast.error(data.message || 'Failed'); }
+                          } catch (err) { console.error(err); toast.error('Request failed'); }
+                        }} className="p-2 border border-border rounded hover:bg-primary/10">Accept</button>
+
+                        <button onClick={async ()=>{
+                          if (!confirm('Reject this submission?')) return;
+                          try {
+                            const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                            const res = await fetch(`${API_ROOT}/api/skill/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'reject' }) });
+                            const data = await res.json();
+                            if (res.ok) { toast.success(data.message || 'Rejected'); setBattleSubmissions(prev=>prev.filter(x=>x._id!==s._id)); }
+                            else { toast.error(data.message || 'Failed'); }
+                          } catch (err) { console.error(err); toast.error('Request failed'); }
+                        }} className="p-2 border border-border rounded hover:bg-red-500/10">Reject</button>
+
+                        <ArrowUpRight className="w-3 h-3 text-text-dim" />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -208,15 +337,28 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {["Alex Johnson", "Sarah Lee", "Michael Chen"].map((name, i) => (
-                  <tr key={i} className="hover:bg-white/5">
-                    <td className="py-4 font-bold">{name}</td>
-                    <td className="py-4 font-mono text-xs">DVX-00{i+1}-ST</td>
+                {users.map((u, i) => (
+                  <tr key={u._id || i} className="hover:bg-white/5">
+                    <td className="py-4 font-bold">{u.name || u.email}</td>
+                    <td className="py-4 font-mono text-xs">{u._id}</td>
                     <td className="py-4">
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/20 text-primary rounded">PREMIUM</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/20 text-primary rounded">{(u.package||'BASIC').toUpperCase()}</span>
                     </td>
                     <td className="py-4">
-                      <button className="text-[10px] font-bold uppercase text-primary hover:underline">Revoke</button>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase ${u.access ? 'text-primary' : 'text-red-400'}`}>{u.access ? 'Active' : 'Revoked'}</span>
+                        <button onClick={async () => {
+                          if (!confirm(u.access ? 'Revoke access for this user?' : 'Restore access for this user?')) return;
+                          try {
+                            const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                            const res = await fetch(`${API_ROOT}/api/users/${u._id}/access`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ access: !u.access }) });
+                            if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); return toast.error(err.message || 'Failed'); }
+                            const updated = await res.json();
+                            setUsers(prev => prev.map(x => x._id === updated._id ? updated : x));
+                            toast.success(updated.access ? 'Access restored' : 'Access revoked');
+                          } catch (err) { console.error(err); toast.error('Request failed'); }
+                        }} className="text-[10px] font-bold uppercase text-primary hover:underline">{u.access ? 'Revoke' : 'Restore'}</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -282,23 +424,57 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {[
-                    { name: "John Doe", ref: "QRS123456", amount: "KSH 250", method: "M-PESA" },
-                    { name: "Jane Smith", ref: "PAY-998877", amount: "KSH 250", method: "PAYPAL" },
-                  ].map((p, i) => (
-                    <tr key={i} className="hover:bg-white/5">
-                      <td className="py-4 font-bold">{p.name}</td>
-                      <td className="py-4 font-mono text-xs">{p.ref}</td>
-                      <td className="py-4 font-mono">{p.amount}</td>
-                      <td className="py-4 text-[10px] font-bold">{p.method}</td>
-                      <td className="py-4">
-                        <div className="flex gap-2">
-                          <button className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
-                          <button className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {pendingPayments.length > 0 ? (
+                    pendingPayments.map((p: any) => (
+                      <tr key={p._id} className="hover:bg-white/5">
+                        <td className="py-4 font-bold">{p.user?.name || p.user?.email || 'Unknown'}</td>
+                        <td className="py-4 font-mono text-xs">{p._id}</td>
+                        <td className="py-4 font-mono">{p.amount} {p.currency}</td>
+                        <td className="py-4 text-[10px] font-bold">{p.provider || 'MANUAL'}</td>
+                        <td className="py-4">
+                          <div className="flex gap-2">
+                            <button onClick={async () => {
+                              try {
+                                const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                                const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+                                if (!res.ok) return toast.error('Verify failed');
+                                toast.success('Marked paid');
+                                setPendingPayments(prev => prev.filter(x => x._id !== p._id));
+                              } catch (err) { console.error(err); toast.error('Request failed'); }
+                            }} className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
+                            <button onClick={async () => {
+                              if (!confirm('Flag and remove this transaction?')) return;
+                              try {
+                                const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                                const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+                                if (!res.ok) return toast.error('Flag failed');
+                                toast.success('Flagged/removed');
+                                setPendingPayments(prev => prev.filter(x => x._id !== p._id));
+                              } catch (err) { console.error(err); toast.error('Request failed'); }
+                            }} className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    [
+                      { name: "John Doe", ref: "QRS123456", amount: "KSH 250", method: "M-PESA" },
+                      { name: "Jane Smith", ref: "PAY-998877", amount: "KSH 250", method: "PAYPAL" },
+                    ].map((p, i) => (
+                      <tr key={i} className="hover:bg-white/5">
+                        <td className="py-4 font-bold">{p.name}</td>
+                        <td className="py-4 font-mono text-xs">{p.ref}</td>
+                        <td className="py-4 font-mono">{p.amount}</td>
+                        <td className="py-4 text-[10px] font-bold">{p.method}</td>
+                        <td className="py-4">
+                          <div className="flex gap-2">
+                            <button className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
+                            <button className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

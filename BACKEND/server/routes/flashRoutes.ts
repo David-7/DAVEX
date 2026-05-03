@@ -9,12 +9,39 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
   try {
     const { title, code, revealAt, expirySeconds, singleWinner } = req.body;
     const userId = (req as any).user?._id;
-    // #region agent log
-    fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H4',location:'flashRoutes.ts:createPrize',message:'Create flash prize request received',data:{title,hasCode:Boolean(code),revealAt,expirySeconds,singleWinner,hasUserId:Boolean(userId)},timestamp:Date.now()})}).catch(()=>{});
+
+    // Basic validation
+    const errors: string[] = [];
+    if (!title || typeof title !== 'string' || title.trim().length < 3) errors.push('title (min 3 chars)');
+    let revealDate: Date | null = null;
+    if (revealAt) {
+      revealDate = new Date(revealAt);
+      if (isNaN(revealDate.getTime())) errors.push('revealAt (invalid date)');
+    } else {
+      revealDate = new Date();
+    }
+    const expiryNum = Number(expirySeconds ?? 0);
+    if (!Number.isInteger(expiryNum) || expiryNum <= 0) errors.push('expirySeconds (positive integer)');
+    const singleWinnerFlag = Boolean(singleWinner);
+
+    // #region agent log (request received)
+    fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H4',location:'flashRoutes.ts:createPrize',message:'Create flash prize request received',data:{title,hasCode:Boolean(code),revealAt:revealDate?.toISOString?.(),expirySeconds:expiryNum,singleWinner:singleWinnerFlag,hasUserId:Boolean(userId)},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
-    const prize = await FlashPrize.create({ title, code, revealAt, expirySeconds, singleWinner, createdBy: userId });
+
+    if (errors.length) {
+      console.warn('Flash prize validation failed:', errors.join(', '));
+      // agent log for validation failure
+      fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H4-VAL',location:'flashRoutes.ts:createPrize:validation',message:'Validation failed for create flash prize',data:{errors,body:req.body,userId},timestamp:Date.now()})}).catch(()=>{});
+      return res.status(400).json({ message: 'Invalid input', errors });
+    }
+
+    const prize = await FlashPrize.create({ title: title.trim(), code: code || undefined, revealAt: revealDate, expirySeconds: expiryNum, singleWinner: singleWinnerFlag, createdBy: userId });
+    console.log('Flash prize created by', String(userId), 'id=', prize._id?.toString?.());
+    // agent log for success
+    fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H4-SUCCESS',location:'flashRoutes.ts:createPrize:success',message:'Flash prize created',data:{prizeId:prize._id?.toString?.(),title:prize.title,createdBy:userId},timestamp:Date.now()})}).catch(()=>{});
     res.status(201).json(prize);
   } catch (err: any) {
+    console.error('Create flash prize error', err);
     res.status(400).json({ message: err.message });
   }
 });

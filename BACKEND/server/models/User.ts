@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["ADMIN", "TEACHER", "STUDENT"], default: "STUDENT" },
+  access: { type: Boolean, default: true },
+  points: { type: Number, default: 0 },
   admissionNumber: { type: String },
   package: { type: String, enum: ["BASIC", "PREMIUM"], default: "BASIC" }
 }, { timestamps: true });

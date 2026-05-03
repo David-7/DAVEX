@@ -15,6 +15,12 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
   const [prizeActive, setPrizeActive] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [activeBattle, setActiveBattle] = useState<any | null>(null);
+  const [submissionText, setSubmissionText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [mySubmissions, setMySubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,11 +28,30 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
       try {
         const [dashRes, sessionRes] = await Promise.all([
           fetch(`${API_ROOT}/api/dashboard/student/summary`, { credentials: 'include' }),
-          fetch(`${API_ROOT}/api/dashboard/sessions`, { credentials: 'include' })
+          fetch(`${API_ROOT}/api/dashboard/sessions`, { credentials: 'include' }),
+          fetch(`${API_ROOT}/api/dashboard/leaderboard`, { credentials: 'include' })
         ]);
         
         if (dashRes.ok) setDashboardData(await dashRes.json());
         if (sessionRes.ok) setSessions(await sessionRes.json());
+        // leaderboard may be the 3rd response
+        try {
+          const lbRes = await fetch(`${API_ROOT}/api/dashboard/leaderboard`, { credentials: 'include' });
+          if (lbRes.ok) setLeaderboard(await lbRes.json());
+        } catch (err) { console.warn('Leaderboard fetch failed', err); }
+        // fetch active battle
+        try {
+          const bRes = await fetch(`${API_ROOT}/api/skill/active`, { credentials: 'include' });
+          if (bRes.ok) {
+            const arr = await bRes.json();
+            setActiveBattle(arr?.[0] || null);
+          }
+        } catch (err) { console.warn('Active battle fetch failed', err); }
+        // fetch my submissions
+        try {
+          const mRes = await fetch(`${API_ROOT}/api/skill/my-submissions`, { credentials: 'include' });
+          if (mRes.ok) setMySubmissions(await mRes.json());
+        } catch (err) { console.warn('My submissions fetch failed', err); }
       } catch (err) {
         console.error("Dashboard fetch error", err);
       } finally {
@@ -35,6 +60,22 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
     };
     fetchData();
   }, []);
+
+  const handleSubmitBattle = async () => {
+    if (!activeBattle) return toast.error('No active battle');
+    if (!submissionText) return toast.error('Enter your answer');
+    setSubmitting(true);
+    try {
+      // get CSRF token
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json().catch(()=>({}));
+      const res = await fetch(`${API_ROOT}/api/skill/${activeBattle._id}/submit`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ answer: submissionText }) });
+      const data = await res.json();
+      if (res.ok) { toast.success(data.message || 'Submitted'); setSubmitted(true); }
+      else toast.error(data.message || 'Submit failed');
+    } catch (err) { toast.error('Submission error'); }
+    finally { setSubmitting(false); }
+  };
 
   function RedeemForm() {
     const [code, setCode] = useState('');
@@ -238,14 +279,44 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                 </p>
 
                 <div className="space-y-4">
-                  <textarea 
-                    className="w-full bg-black/50 border border-border rounded p-6 focus:border-primary focus:outline-none transition-all text-white text-sm font-mono" 
-                    rows={6}
-                    placeholder="root@davex-lms:~# _ "
-                  ></textarea>
-                  <button className="bg-primary text-black font-mono text-xs font-bold px-8 py-3 rounded hover:bg-primary-dark transition-all">
-                    ENTER BATTLE ARENA
-                  </button>
+                  {activeBattle ? (
+                    <>
+                      <textarea
+                        value={submissionText}
+                        onChange={(e)=>setSubmissionText(e.target.value)}
+                        className="w-full bg-black/50 border border-border rounded p-6 focus:border-primary focus:outline-none transition-all text-white text-sm font-mono"
+                        rows={8}
+                        placeholder="Paste your answer or write your steps here..."
+                        disabled={submitted}
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={handleSubmitBattle} disabled={submitting || submitted} className="bg-primary text-black font-mono text-xs font-bold px-6 py-3 rounded hover:bg-primary-dark transition-all">
+                          {submitted ? 'SUBMITTED' : (submitting ? 'SUBMITTING...' : 'SUBMIT ANSWER')}
+                        </button>
+                        <button onClick={() => { setSubmissionText(''); }} className="px-4 py-3 border border-border rounded text-sm">Clear</button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-4 text-text-dim">No active skill battles at the moment.</div>
+                  )}
+                </div>
+
+                {/* My submissions */}
+                <div className="mt-6 bg-black/40 border border-border rounded p-4">
+                  <h4 className="text-xs text-text-dim uppercase tracking-widest mb-3">My Submissions</h4>
+                  {mySubmissions.length === 0 && <div className="text-text-dim">No submissions yet.</div>}
+                  {mySubmissions.map(s => (
+                    <div key={s._id} className="mb-3 p-3 bg-black/20 rounded">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-bold">{s.battle?.title || 'Battle'}</div>
+                        <div className="text-[11px] font-mono text-text-dim">{new Date(s.createdAt).toLocaleString()}</div>
+                      </div>
+                      <div className="text-[13px] text-gray-300 mt-2 whitespace-pre-wrap">{String(s.answer).slice(0,1000)}</div>
+                      <div className="text-[11px] mt-2">
+                        Status: <span className={`font-bold ${s.status==='accepted'?'text-green-400': s.status==='rejected'?'text-red-400':'text-text-dim'}`}>{s.status}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -253,20 +324,19 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
               <div className="technical-card">
                 <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Leaderboard (Weekly)</h3>
                 <div className="space-y-0 divide-y divide-border">
-                  {[
-                    { rank: '01', name: 'Sarah Jenkins', points: 2840 },
-                    { rank: '02', name: 'Marcus Vane', points: 2610 },
-                    { rank: '03', name: 'You', points: 2550, active: true },
-                    { rank: '04', name: 'Lee Chen', points: 2400 },
-                  ].map((player, i) => (
-                    <div key={i} className="flex items-center justify-between py-3 transition-colors hover:bg-white/5">
-                      <div className="flex items-center gap-4">
-                        <span className="font-mono text-primary text-xs">{player.rank}</span>
-                        <span className={`text-[13px] ${player.active ? 'font-bold text-white' : 'text-gray-400'}`}>{player.name}</span>
-                      </div>
-                      <span className="text-text-dim font-mono text-[12px]">{player.points} pts</span>
-                    </div>
-                  ))}
+                    {leaderboard.length > 0 ? (
+                      leaderboard.slice(0,4).map((p: any) => (
+                        <div key={p.userId} className="flex items-center justify-between py-3 transition-colors hover:bg-white/5">
+                          <div className="flex items-center gap-4">
+                            <span className="font-mono text-primary text-xs">{String(p.rank).padStart(2,'0')}</span>
+                            <span className={`text-[13px] ${p.userId === dashboardData?.profile?.userId ? 'font-bold text-white' : 'text-gray-400'}`}>{p.name}</span>
+                          </div>
+                          <span className="text-text-dim font-mono text-[12px]">{p.points} pts</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-text-dim">No leaderboard data this week.</div>
+                    )}
                 </div>
               </div>
             </motion.div>
@@ -376,31 +446,30 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {[
-                      { rank: 1, name: "Sarah Jenkins", points: 2840, badges: 12 },
-                      { rank: 2, name: "Marcus Vane", points: 2610, badges: 9 },
-                      { rank: 3, name: "You", points: 2550, badges: 15, isMe: true },
-                      { rank: 4, name: "Lee Chen", points: 2400, badges: 7 },
-                      { rank: 5, name: "Alex Riv", points: 2100, badges: 5 },
-                    ].map((p, i) => (
-                      <tr key={i} className={`hover:bg-white/5 transition-all ${p.isMe ? 'bg-primary/5' : ''}`}>
-                        <td className="p-6 font-mono text-primary text-xl font-bold">#{p.rank}</td>
-                        <td className="p-6 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">{p.name[0]}</div>
-                          <span className={p.isMe ? 'font-bold text-white' : 'text-gray-300'}>{p.name} {p.isMe && '(YOU)'}</span>
-                        </td>
-                        <td className="p-6">
-                          <div className="flex gap-1">
-                            {Array.from({ length: Math.min(3, p.badges) }).map((_, i) => (
-                              <div key={i} className="w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(0,184,81,0.4)]">
-                                <Trophy className="w-2 h-2 text-black" />
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="p-6 font-mono text-xl">{p.points.toLocaleString()}</td>
-                      </tr>
-                    ))}
+                    {leaderboard.length > 0 ? (
+                      leaderboard.map((p: any, i: number) => (
+                        <tr key={p.userId} className={`hover:bg-white/5 transition-all ${p.userId === dashboardData?.profile?.userId ? 'bg-primary/5' : ''}`}>
+                          <td className="p-6 font-mono text-primary text-xl font-bold">#{p.rank}</td>
+                          <td className="p-6 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">{p.name?.[0] || '?'}</div>
+                            <span className={p.userId === dashboardData?.profile?.userId ? 'font-bold text-white' : 'text-gray-300'}>{p.name}{p.userId === dashboardData?.profile?.userId && ' (YOU)'}</span>
+                          </td>
+                          <td className="p-6">
+                            <div className="flex gap-1">
+                              {/* placeholder badges based on points */}
+                              {Array.from({ length: Math.min(3, Math.floor((p.points || 0) / 1000)) }).map((_, j) => (
+                                <div key={j} className="w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(0,184,81,0.4)]">
+                                  <Trophy className="w-2 h-2 text-black" />
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-6 font-mono text-xl">{(p.points || 0).toLocaleString()}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan={4} className="p-6 text-text-dim">No leaderboard data available.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>

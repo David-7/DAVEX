@@ -43,15 +43,18 @@ async function startServer() {
   // Allow multiple frontend origins (comma-separated in env) for dev and prod.
   const FRONTEND_ORIGINS_RAW = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
   const allowedOrigins = FRONTEND_ORIGINS_RAW.split(',').map(s => s.trim()).filter(Boolean);
+  console.log('Allowed frontend origins:', allowedOrigins.join(', '));
   app.use(cors({
     origin: (origin, callback) => {
       // Allow requests with no Origin (curl, server-to-server)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Do not throw an error here; pass `false` so CORS middleware simply doesn't set CORS headers.
       console.warn(`Blocked CORS request from origin: ${origin}. Allowed: ${allowedOrigins.join(',')}`);
-      return callback(new Error('Not allowed by CORS'));
+      return callback(null, false);
     },
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 204
   }));
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser());

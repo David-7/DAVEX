@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User.ts";
+import { Points } from "../models/Points.ts";
 import { z } from "zod";
 
 let JWT_SECRET = process.env.JWT_SECRET || '';
@@ -73,6 +74,18 @@ export const login = async (req: Request, res: Response) => {
         role: user.role,
         token,
       });
+      // Award daily login point (once per UTC day)
+      try {
+        const startOfDay = new Date();
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        const existing = await Points.findOne({ user: user._id, reason: 'daily-login', createdAt: { $gte: startOfDay } });
+        if (!existing) {
+          await Points.create({ user: user._id, points: 1, reason: 'daily-login' });
+          await User.findByIdAndUpdate(user._id, { $inc: { points: 1 } });
+        }
+      } catch (err: any) {
+        console.error('Error awarding daily login points', err);
+      }
     } else {
       res.status(401).json({ message: "Invalid email or password" });
     }
