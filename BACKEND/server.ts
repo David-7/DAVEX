@@ -40,8 +40,19 @@ async function startServer() {
   app.use(helmet({
     contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
   }));
-  const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
-  app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
+  // Allow multiple frontend origins (comma-separated in env) for dev and prod.
+  const FRONTEND_ORIGINS_RAW = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+  const allowedOrigins = FRONTEND_ORIGINS_RAW.split(',').map(s => s.trim()).filter(Boolean);
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow requests with no Origin (curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn(`Blocked CORS request from origin: ${origin}. Allowed: ${allowedOrigins.join(',')}`);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  }));
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser());
 
