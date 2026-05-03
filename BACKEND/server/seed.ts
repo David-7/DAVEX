@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { User } from "./models/User.ts";
-import { LessonUnit } from "./models/LessonUnit.ts";
+import { User } from "./models/User.js";
+import { LessonUnit } from "./models/LessonUnit.js";
 
 dotenv.config();
 

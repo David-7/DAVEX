@@ -1,5 +1,5 @@
 import express from "express";
-import { protect } from "../middleware/auth.ts";
+import { protect } from "../middleware/auth.js";
 import fetch from "node-fetch";
 
 const router = express.Router();

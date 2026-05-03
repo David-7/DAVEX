@@ -1,6 +1,6 @@
 import express from "express";
-import { LessonUnit } from "../models/LessonUnit.ts";
-import { protect, authorize } from "../middleware/auth.ts";
+import { LessonUnit } from "../models/LessonUnit.js";
+import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 

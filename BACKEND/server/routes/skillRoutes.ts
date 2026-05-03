@@ -1,6 +1,6 @@
 import express from "express";
-import { protect, authorize } from "../middleware/auth.ts";
-import { SkillBattle } from "../models/SkillBattle.ts";
+import { protect, authorize } from "../middleware/auth.js";
+import { SkillBattle } from "../models/SkillBattle.js";
 
 const router = express.Router();
 
