@@ -40,7 +40,8 @@ async function startServer() {
   app.use(helmet({
     contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
   }));
-  app.use(cors({ origin: process.env.FRONTEND_ORIGIN || '*' }));
+  const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+  app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser());
 
@@ -54,7 +55,13 @@ async function startServer() {
 
   // CSRF protection for state-changing requests (uses cookie-based tokens)
   try {
-    app.use(csurf({ cookie: true }));
+    app.use(csurf({
+      cookie: {
+        httpOnly: true,
+        sameSite: 'none',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }));
   } catch (err) {
     console.warn('csurf middleware not available or failed to initialize');
   }
