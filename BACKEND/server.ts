@@ -6,6 +6,8 @@ import helmet from "helmet";
 // rateLimit is configured in middleware; avoid unused import here
 import cors from "cors";
 import dotenv from "dotenv";
+import { createServer } from 'http';
+import { Server as IOServer } from 'socket.io';
 import authRoutes from "./server/routes/authRoutes.js";
 import dashboardRoutes from "./server/routes/dashboardRoutes.js";
 import lessonRoutes from "./server/routes/lessonRoutes.js";
@@ -85,6 +87,7 @@ async function startServer() {
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/lessons", lessonRoutes);
+  app.use('/api/chat', (await import('./server/routes/chatRoutes.js')).default);
   app.use("/api/skills", (await import('./server/routes/skillRoutes.js')).default);
   app.use("/api/flash", (await import('./server/routes/flashRoutes.js')).default);
   app.use("/api/payments", (await import('./server/routes/paymentRoutes.js')).default);
@@ -124,6 +127,87 @@ async function startServer() {
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  // Attach Socket.IO
+  try {
+    const io = new IOServer(server, {
+      cors: { origin: allowedOrigins, credentials: true }
+    });
+    app.set('io', io);
+    io.on('connection', (socket) => {
+      console.log('Socket connected', socket.id);
+      // allow client to identify (safer than trusting client-sent userId)
+      socket.on('identify', (u) => {
+        try { socket.data.user = { id: u?.userId || u?.id || null, name: u?.name || u?.user || null }; }
+        catch (e) { socket.data.user = null; }
+      });
+
+      // join channel/room
+      socket.on('join:channel', (channel) => {
+        try { if (typeof channel === 'string') socket.join(channel); }
+        catch (e) { }
+      });
+
+      socket.on('chat:message', async (msg) => {
+        // enforce simple per-user token-bucket rate limit
+        try {
+          const { allowSend, timeUntilRefill } = await import('./server/utils/chatRateLimiter.js');
+          const senderKey = (socket.data?.user?.id) ? String(socket.data.user.id) : socket.id;
+          const allowed = allowSend(senderKey);
+          if (!allowed) {
+            const wait = timeUntilRefill(senderKey);
+            socket.emit('chat:rate_limited', { retryAfterMs: wait });
+            return;
+          }
+        } catch (e) { /* silently continue if limiter fails */ }
+
+        // basic auth-check: if client provided userId but didn't identify, reject
+        const identified = socket.data?.user;
+        if (msg.userId && identified && String(msg.userId) !== String(identified.id)) {
+          socket.emit('chat:unauthorized', { message: 'user mismatch' });
+          return;
+        }
+
+        const channel = msg.channel || 'general';
+        const text = msg.text || msg.message || msg.msg || '';
+
+        // content filter
+        try {
+          const { checkMessageContent } = await import('./server/utils/chatFilter.js');
+          const ok = checkMessageContent(text || '');
+          if (!ok.allowed) {
+            socket.emit('chat:blocked', { reason: ok.reason || 'blocked_content' });
+            return;
+          }
+        } catch (e) { /* continue if filter fails */ }
+
+        const payload = {
+          userId: msg.userId || socket.data?.user?.id || null,
+          user: msg.user || socket.data?.user?.name || 'Anonymous',
+          channel,
+          text,
+          time: msg.time ? new Date(msg.time) : new Date()
+        };
+
+        // persist and broadcast to channel
+        (async () => {
+          try {
+            const { ChatMessage } = await import('./server/models/ChatMessage.js');
+            await ChatMessage.create(payload as any);
+          } catch (e) { console.warn('Failed to persist chat message', e); }
+        })();
+
+        try { io.to(channel).emit('chat:message', payload); }
+        catch (e) { io.emit('chat:message', payload); }
+      });
+
+      socket.on('disconnect', () => {
+        // handle disconnect
+      });
+    });
+  } catch (err) {
+    console.warn('Socket.IO failed to initialize', err);
+  }
 
   server.on('error', (err: any) => {
     if (err?.code === 'EADDRINUSE') {

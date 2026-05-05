@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
 import toast from 'react-hot-toast';
+import CodeModal from '../../components/CodeModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import PromptModal from '../../components/PromptModal';
 
 export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("overview");
@@ -17,6 +20,7 @@ export default function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
   const [showNewEntityModal, setShowNewEntityModal] = useState(false);
+  const [newEntityType, setNewEntityType] = useState('flash');
   const [newPrizeTitle, setNewPrizeTitle] = useState('');
   const [newPrizeCode, setNewPrizeCode] = useState('');
   const [newPrizeRevealAt, setNewPrizeRevealAt] = useState('');
@@ -52,6 +56,12 @@ export default function AdminDashboard() {
     fetchAdminData();
   }, []);
   const [battleSubmissions, setBattleSubmissions] = useState<any[]>([]);
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState<{ open: boolean; code?: string }>({ open: false });
+  const [chatRecent, setChatRecent] = useState<any[]>([]);
+  const [chatFlagged, setChatFlagged] = useState<any[]>([]);
+  const [confirmState, setConfirmState] = useState<any>({ open: false, title: '', message: '', onConfirm: null, confirmLabel: 'Confirm' });
+  const [promptState, setPromptState] = useState<any>({ open: false, title: '', placeholder: '', initial: '', onConfirm: null });
 
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center font-mono text-primary uppercase tracking-[0.3em]">Accessing_Admin_Core_Node...</div>;
 
@@ -123,11 +133,13 @@ export default function AdminDashboard() {
               <h4 className="text-sm font-bold">Create New Entity</h4>
               <button onClick={() => setShowNewEntityModal(false)} className="p-2 border border-border rounded">Close</button>
             </div>
-            <div className="space-y-4">
+              <div className="space-y-4">
               <div>
                 <label className="text-xs text-text-dim uppercase">Type</label>
-                <select value={'flash'} disabled className="w-full p-3 bg-black border border-border rounded mt-1">
+                <select value={newEntityType} onChange={(e)=>setNewEntityType(e.target.value)} className="w-full p-3 bg-black border border-border rounded mt-1">
                   <option value="flash">Flash Prize</option>
+                  <option value="announcement">Announcement</option>
+                  <option value="session">Session</option>
                 </select>
               </div>
 
@@ -163,8 +175,16 @@ export default function AdminDashboard() {
                   try {
                     const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
                     const { csrfToken } = await tokenRes.json();
-                    const body = { title: newPrizeTitle, code: newPrizeCode || undefined, revealAt: newPrizeRevealAt || new Date().toISOString(), expirySeconds: newPrizeExpiry, singleWinner: newPrizeSingleWinner };
-                    const res = await fetch(`${API_ROOT}/api/flash`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify(body) });
+                        const body = { title: newPrizeTitle, code: newPrizeCode || undefined, revealAt: newPrizeRevealAt || new Date().toISOString(), expirySeconds: newPrizeExpiry, singleWinner: newPrizeSingleWinner };
+                        let res;
+                        if (newEntityType === 'flash') {
+                          res = await fetch(`${API_ROOT}/api/flash`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify(body) });
+                        } else {
+                          // Placeholder for other entity types
+                          toast('Entity type not implemented yet', { icon: 'ℹ️' });
+                          setShowNewEntityModal(false);
+                          return;
+                        }
                     if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); return toast.error(err.message||'Failed'); }
                     const prize = await res.json();
                     toast.success('Flash prize created');
@@ -229,24 +249,34 @@ export default function AdminDashboard() {
                       <p className="font-mono text-[10px] text-text-dim uppercase mt-1">MANUAL • {p.amount} {p.currency}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={async () => {
-                        const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
-                        const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
-                        if (res.ok) { toast.success('Marked paid'); setPendingPayments(prev => prev.filter(x => x._id !== p._id)); }
-                        else toast.error('Failed');
-                      }} className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all">
-                        <Check className="w-3 h-3" />
+                      <button onClick={() => setConfirmState({ open: true, title: 'Mark Paid', message: 'Mark this manual payment as paid and generate redeem code?', onConfirm: async () => {
+                        setConfirmState((s:any)=>({ ...s, open:false }));
+                        setLoadingAction(true);
+                        try {
+                          const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                          const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+                          const data = await res.json();
+                          if (res.ok) { 
+                            toast.success('Marked paid');
+                            setPendingPayments(prev => prev.filter(x => x._id !== p._id));
+                            setShowCodeModal({ open: true, code: data.code });
+                          } else toast.error(data.message || 'Failed');
+                        } catch (err) { console.error(err); toast.error('Failed'); }
+                        finally { setLoadingAction(false); }
+                      }, confirmLabel: 'Mark Paid' })} className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all">
+                        {loadingAction ? <span className="text-text-dim">Processing...</span> : <Check className="w-3 h-3" />}
                       </button>
-                      <button onClick={async () => {
-                        if (!confirm('Reject and remove this pending payment?')) return;
+                      <button onClick={() => setConfirmState({ open: true, title: 'Reject Payment', message: 'Reject and remove this pending payment?', onConfirm: async () => {
+                        setConfirmState((s:any)=>({ ...s, open:false }));
                         const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                         const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
                         if (res.ok) { toast.success('Removed'); setPendingPayments(prev => prev.filter(x => x._id !== p._id)); }
                         else toast.error('Failed');
-                      }} className="p-2 border border-border rounded hover:bg-red-500/10 hover:text-red-500 transition-all">
+                      }, confirmLabel: 'Reject' })} className="p-2 border border-border rounded hover:bg-red-500/10 hover:text-red-500 transition-all">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
+                  <CodeModal open={showCodeModal.open} code={showCodeModal.code} onClose={()=>setShowCodeModal({open:false})} />
                   </div>
                 ))}
               </div>
@@ -287,8 +317,8 @@ export default function AdminDashboard() {
                         <p className="text-sm mt-2 text-gray-300 max-w-xl whitespace-pre-wrap">{String(s.answer).slice(0, 800)}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={async ()=>{
-                          if (!confirm('Accept this submission and award points?')) return;
+                        <button onClick={() => setConfirmState({ open: true, title: 'Accept Submission', message: 'Accept this submission and award points?', onConfirm: async () => {
+                          setConfirmState((s:any)=>({ ...s, open:false }));
                           try {
                             const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
                             const res = await fetch(`${API_ROOT}/api/skill/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'accept' }) });
@@ -296,10 +326,10 @@ export default function AdminDashboard() {
                             if (res.ok) { toast.success(data.message || 'Accepted'); setBattleSubmissions(prev=>prev.filter(x=>x._id!==s._id)); }
                             else { toast.error(data.message || 'Failed'); }
                           } catch (err) { console.error(err); toast.error('Request failed'); }
-                        }} className="p-2 border border-border rounded hover:bg-primary/10">Accept</button>
+                        }, confirmLabel: 'Accept' })} className="p-2 border border-border rounded hover:bg-primary/10">Accept</button>
 
-                        <button onClick={async ()=>{
-                          if (!confirm('Reject this submission?')) return;
+                        <button onClick={() => setConfirmState({ open: true, title: 'Reject Submission', message: 'Reject this submission?', onConfirm: async () => {
+                          setConfirmState((s:any)=>({ ...s, open:false }));
                           try {
                             const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
                             const res = await fetch(`${API_ROOT}/api/skill/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'reject' }) });
@@ -307,7 +337,7 @@ export default function AdminDashboard() {
                             if (res.ok) { toast.success(data.message || 'Rejected'); setBattleSubmissions(prev=>prev.filter(x=>x._id!==s._id)); }
                             else { toast.error(data.message || 'Failed'); }
                           } catch (err) { console.error(err); toast.error('Request failed'); }
-                        }} className="p-2 border border-border rounded hover:bg-red-500/10">Reject</button>
+                        }, confirmLabel: 'Reject' })} className="p-2 border border-border rounded hover:bg-red-500/10">Reject</button>
 
                         <ArrowUpRight className="w-3 h-3 text-text-dim" />
                       </div>
@@ -347,8 +377,8 @@ export default function AdminDashboard() {
                     <td className="py-4">
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-bold uppercase ${u.access ? 'text-primary' : 'text-red-400'}`}>{u.access ? 'Active' : 'Revoked'}</span>
-                        <button onClick={async () => {
-                          if (!confirm(u.access ? 'Revoke access for this user?' : 'Restore access for this user?')) return;
+                        <button onClick={() => setConfirmState({ open: true, title: u.access ? 'Revoke Access' : 'Restore Access', message: u.access ? 'Revoke access for this user?' : 'Restore access for this user?', onConfirm: async () => {
+                          setConfirmState((s:any)=>({ ...s, open:false }));
                           try {
                             const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                             const res = await fetch(`${API_ROOT}/api/users/${u._id}/access`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ access: !u.access }) });
@@ -357,7 +387,7 @@ export default function AdminDashboard() {
                             setUsers(prev => prev.map(x => x._id === updated._id ? updated : x));
                             toast.success(updated.access ? 'Access restored' : 'Access revoked');
                           } catch (err) { console.error(err); toast.error('Request failed'); }
-                        }} className="text-[10px] font-bold uppercase text-primary hover:underline">{u.access ? 'Revoke' : 'Restore'}</button>
+                        }, confirmLabel: u.access ? 'Revoke' : 'Restore' })} className="text-[10px] font-bold uppercase text-primary hover:underline">{u.access ? 'Revoke' : 'Restore'}</button>
                       </div>
                     </td>
                   </tr>
@@ -375,10 +405,118 @@ export default function AdminDashboard() {
               <button className="w-full bg-primary text-black font-bold py-2 rounded text-[10px] uppercase tracking-widest">DEPLOY NEW PRIZE</button>
             </div>
             <div className="technical-card border-dashed">
-              <button className="w-full h-full flex flex-col items-center justify-center gap-3 text-text-dim hover:text-white transition-all">
+              <button onClick={()=>setShowNewEntityModal(true)} className="w-full h-full flex flex-col items-center justify-center gap-3 text-text-dim hover:text-white transition-all">
                 <Plus className="w-8 h-8" />
                 <span className="text-[10px] uppercase font-bold tracking-[0.2em]">Queue Reward</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {activeView === "chat" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="technical-card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest">Recent Messages</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={async ()=>{
+                    try {
+                      const res = await fetch(`${API_ROOT}/api/chat/recent`, { credentials: 'include' });
+                      if (res.ok) setChatRecent(await res.json());
+                    } catch (e) { console.warn(e); }
+                  }} className="text-xs p-2 border border-border rounded">Refresh</button>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {chatRecent.length === 0 && <div className="text-text-dim p-4">No recent messages.</div>}
+                {chatRecent.map(m => (
+                  <div key={m._id} className="p-3 bg-black/20 rounded border border-border flex items-start justify-between">
+                    <div className="max-w-xl">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="font-bold text-sm">{m.user || 'Anonymous'}</div>
+                        <div className="text-[10px] text-text-dim font-mono">{new Date(m.time || m.createdAt).toLocaleString()}</div>
+                      </div>
+                      <div className="text-sm text-gray-300 whitespace-pre-wrap">{m.text}</div>
+                    </div>
+                    <div className="flex flex-col gap-2 ml-4">
+                      <button onClick={() => setPromptState({ open: true, title: 'Flag Message', placeholder: 'Reason (optional)', initial: '', onConfirm: async (reason: string) => {
+                        setPromptState((s:any)=>({ ...s, open:false }));
+                        try {
+                          const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+                          const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                          const res = await fetch(`${API_ROOT}/api/chat/${m._id}/flag`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ reason }) });
+                          if (res.ok) {
+                            const updated = await res.json();
+                            setChatFlagged(prev => [updated, ...prev]);
+                            setChatRecent(prev => prev.filter(x=>x._id !== m._id));
+                            toast.success('Message flagged');
+                          } else { const err = await res.json().catch(()=>({})); toast.error(err.message||'Failed'); }
+                        } catch (e) { console.error(e); toast.error('Failed'); }
+                      } })} className="text-xs p-2 border border-border rounded">Flag</button>
+
+                      <button onClick={() => setConfirmState({ open: true, title: 'Delete Message', message: 'Delete this message?', onConfirm: async () => {
+                        setConfirmState((s:any)=>({ ...s, open:false }));
+                        try {
+                          const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+                          const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                          const res = await fetch(`${API_ROOT}/api/chat/${m._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken||'' } });
+                          if (res.ok) {
+                            setChatRecent(prev => prev.filter(x=>x._id !== m._id));
+                            setChatFlagged(prev => prev.filter(x=>x._id !== m._id));
+                            toast.success('Deleted');
+                          } else { const err = await res.json().catch(()=>({})); toast.error(err.message||'Failed'); }
+                        } catch (e) { console.error(e); toast.error('Failed'); }
+                      }, confirmLabel: 'Delete' })} className="text-xs p-2 border border-border rounded hover:bg-red-500/10">Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="technical-card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest">Flagged Messages</h3>
+                <div>
+                  <button onClick={async ()=>{
+                    try {
+                      const res = await fetch(`${API_ROOT}/api/chat/flagged`, { credentials: 'include' });
+                      if (res.ok) setChatFlagged(await res.json());
+                    } catch (e) { console.warn(e); }
+                  }} className="text-xs p-2 border border-border rounded">Refresh</button>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {chatFlagged.length === 0 && <div className="text-text-dim p-4">No flagged messages.</div>}
+                {chatFlagged.map(m => (
+                  <div key={m._id} className="p-3 bg-black/20 rounded border border-border flex items-start justify-between">
+                    <div className="max-w-xl">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="font-bold text-sm">{m.user || 'Anonymous'}</div>
+                        <div className="text-[10px] text-text-dim font-mono">{new Date(m.time || m.createdAt).toLocaleString()}</div>
+                      </div>
+                      <div className="text-sm text-gray-300 whitespace-pre-wrap">{m.text}</div>
+                      <div className="text-[10px] text-text-dim mt-2">Reason: {m.flaggedReason || '—'}</div>
+                    </div>
+                    <div className="flex flex-col gap-2 ml-4">
+                      <button onClick={() => setConfirmState({ open: true, title: 'Unflag Message', message: 'Unflag this message?', onConfirm: async () => {
+                        setConfirmState((s:any)=>({ ...s, open:false }));
+                        setChatFlagged(prev => prev.filter(x=>x._id !== m._id));
+                        toast('Unflagged locally');
+                      }, confirmLabel: 'Unflag' })} className="text-xs p-2 border border-border rounded">Unflag</button>
+                      <button onClick={() => setConfirmState({ open: true, title: 'Delete Flagged Message', message: 'Delete this flagged message?', onConfirm: async () => {
+                        setConfirmState((s:any)=>({ ...s, open:false }));
+                        try {
+                          const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+                          const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                          const res = await fetch(`${API_ROOT}/api/chat/${m._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken||'' } });
+                          if (res.ok) { setChatFlagged(prev => prev.filter(x=>x._id !== m._id)); toast.success('Deleted'); }
+                          else { const err = await res.json().catch(()=>({})); toast.error(err.message||'Failed'); }
+                        } catch (e) { console.error(e); toast.error('Failed'); }
+                      }, confirmLabel: 'Delete' })} className="text-xs p-2 border border-border rounded hover:bg-red-500/10">Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -442,8 +580,8 @@ export default function AdminDashboard() {
                                 setPendingPayments(prev => prev.filter(x => x._id !== p._id));
                               } catch (err) { console.error(err); toast.error('Request failed'); }
                             }} className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
-                            <button onClick={async () => {
-                              if (!confirm('Flag and remove this transaction?')) return;
+                            <button onClick={() => setConfirmState({ open: true, title: 'Flag Transaction', message: 'Flag and remove this transaction?', onConfirm: async () => {
+                              setConfirmState((s:any)=>({ ...s, open:false }));
                               try {
                                 const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                                 const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
@@ -451,7 +589,7 @@ export default function AdminDashboard() {
                                 toast.success('Flagged/removed');
                                 setPendingPayments(prev => prev.filter(x => x._id !== p._id));
                               } catch (err) { console.error(err); toast.error('Request failed'); }
-                            }} className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
+                            }, confirmLabel: 'Flag' })} className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
                           </div>
                         </td>
                       </tr>
@@ -509,6 +647,8 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+      <ConfirmDialog open={confirmState.open} title={confirmState.title} message={confirmState.message} confirmLabel={confirmState.confirmLabel || 'Confirm'} onCancel={() => setConfirmState((s:any)=>({...s, open:false}))} onConfirm={() => { try { confirmState.onConfirm && confirmState.onConfirm(); } catch(e){ console.error(e); } }} />
+      <PromptModal open={promptState.open} title={promptState.title} placeholder={promptState.placeholder} initial={promptState.initial} onCancel={() => setPromptState((s:any)=>({...s, open:false}))} onConfirm={(val:any) => { try { promptState.onConfirm && promptState.onConfirm(val); } catch(e){ console.error(e); } }} />
     </div>
   );
 }

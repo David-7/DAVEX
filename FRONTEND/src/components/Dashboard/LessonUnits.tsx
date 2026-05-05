@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Clock, Plus, Trash2, FileText } from "lucide-react";
 import { API_ROOT } from "../../config";
 import toast from "react-hot-toast";
+import ConfirmDialog from "../ConfirmDialog";
 
 interface Lesson {
   _id: string;
@@ -17,6 +18,28 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLesson, setNewLesson] = useState({ title: "", content: "", order: 0 });
+  const [confirm, setConfirm] = useState<{ open: boolean; id?: string; title?: string; message?: string }>({ open: false });
+
+  const doDelete = async (id?: string) => {
+    if (!id) return setConfirm({ open: false });
+    try {
+      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
+      const { csrfToken } = await tokenRes.json();
+      const res = await fetch(`${API_ROOT}/api/lessons/${id}`, {
+        method: "DELETE",
+        credentials: 'include',
+        headers: { 'x-csrf-token': csrfToken || '' }
+      });
+      if (res.ok) {
+        toast.success("Lesson removed");
+        fetchLessons();
+      }
+    } catch (err) {
+      toast.error("Error deleting lesson");
+    } finally {
+      setConfirm({ open: false });
+    }
+  };
 
   const fetchLessons = async () => {
     try {
@@ -77,22 +100,7 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this lesson unit?")) return;
-    try {
-      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
-      const { csrfToken } = await tokenRes.json();
-      const res = await fetch(`${API_ROOT}/api/lessons/${id}`, {
-        method: "DELETE",
-        credentials: 'include',
-        headers: { 'x-csrf-token': csrfToken || '' }
-      });
-      if (res.ok) {
-        toast.success("Lesson removed");
-        fetchLessons();
-      }
-    } catch (err) {
-      toast.error("Error deleting lesson");
-    }
+    setConfirm({ open: true, id, title: 'Delete lesson', message: 'Delete this lesson unit?' });
   };
 
   if (loading) return <div className="text-center p-8 font-mono text-text-dim">Loading_Syllabus_Data...</div>;
@@ -223,6 +231,14 @@ export default function LessonUnits({ isAdmin = false }: { isAdmin?: boolean }) 
           ))
         )}
       </div>
+      <ConfirmDialog
+        open={confirm.open}
+        title={confirm.title}
+        message={confirm.message}
+        onCancel={() => setConfirm({ open: false })}
+        onConfirm={() => doDelete(confirm.id)}
+        confirmLabel="Delete"
+      />
     </div>
   );
 }

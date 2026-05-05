@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User as UserIcon, BookOpen, Calendar, Trophy, Zap, 
@@ -9,6 +9,7 @@ import ProgressChart from "../../components/Dashboard/ProgressChart.tsx";
 import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
 import toast from "react-hot-toast";
 import { API_ROOT } from "../../config";
+import { io, Socket } from 'socket.io-client';
 
 export default function StudentDashboard({ user: initialUser }: { user: any }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -16,6 +17,10 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const socketRef = useRef<Socket | null>(null);
+  const [activePrize, setActivePrize] = useState<any | null>(null);
   const [activeBattle, setActiveBattle] = useState<any | null>(null);
   const [submissionText, setSubmissionText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -47,11 +52,25 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
             setActiveBattle(arr?.[0] || null);
           }
         } catch (err) { console.warn('Active battle fetch failed', err); }
+        // fetch active flash prize
+        try {
+          const pRes = await fetch(`${API_ROOT}/api/flash/active`, { credentials: 'include' });
+          if (pRes.ok) {
+            const pj = await pRes.json();
+            if (pj?.active) setActivePrize(pj.prize || null);
+            else setActivePrize(null);
+          }
+        } catch (err) { console.warn('Active prize fetch failed', err); }
         // fetch my submissions
         try {
           const mRes = await fetch(`${API_ROOT}/api/skill/my-submissions`, { credentials: 'include' });
           if (mRes.ok) setMySubmissions(await mRes.json());
         } catch (err) { console.warn('My submissions fetch failed', err); }
+        // fetch recent chat messages
+        try {
+          const cRes = await fetch(`${API_ROOT}/api/chat/recent`, { credentials: 'include' });
+          if (cRes.ok) setMessages(await cRes.json());
+        } catch (err) { console.warn('Chat recent fetch failed', err); }
       } catch (err) {
         console.error("Dashboard fetch error", err);
       } finally {
@@ -59,7 +78,45 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
       }
     };
     fetchData();
+
+    // Setup socket.io for chat and battle events
+    try {
+      const endpoint = API_ROOT || window.location.origin;
+      const socket = io(endpoint, { withCredentials: true });
+      socketRef.current = socket;
+      socket.on('connect', () => {
+        console.log('socket connected', socket.id);
+      });
+      socket.on('chat:message', (msg: any) => {
+        setMessages((s) => [...s, msg]);
+      });
+      socket.on('battle:accepted', (evt: any) => {
+        toast.success(`Submission accepted: +${evt.points} pts`);
+      });
+      socket.on('chat:rate_limited', (info: any) => {
+        const ms = info?.retryAfterMs || 0;
+        toast.error(`You're sending messages too fast. Retry in ${Math.ceil(ms/1000)}s`);
+      });
+      socket.on('chat:unauthorized', (info: any) => {
+        toast.error(info?.message || 'Chat unauthorized');
+      });
+      socket.on('chat:blocked', (info: any) => {
+        toast.error(info?.reason ? `Message blocked: ${info.reason}` : 'Message blocked by server');
+      });
+    } catch (err) { console.warn('Socket init failed', err); }
+
+    return () => { socketRef.current?.disconnect(); };
   }, []);
+
+  // identify/join channel once we have profile info
+  useEffect(() => {
+    if (!socketRef.current || !dashboardData) return;
+    try {
+      const profile = dashboardData?.profile || {};
+      socketRef.current.emit('identify', { userId: profile.userId || profile._id, name: profile.name });
+      socketRef.current.emit('join:channel', 'general');
+    } catch (e) { }
+  }, [dashboardData]);
 
   const handleSubmitBattle = async () => {
     if (!activeBattle) return toast.error('No active battle');
@@ -119,30 +176,39 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
         {/* Flash Prize Banner */}
         <AnimatePresence>
           {prizeActive && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="bg-prize text-black p-4 rounded-lg flex flex-col md:flex-row items-center justify-between gap-4 font-bold overflow-hidden relative"
-            >
-              <div className="absolute inset-0 prize-hatch opacity-20 pointer-events-none" />
-              <div className="flex items-center gap-3 relative z-10">
-                <Gift className="w-6 h-6" />
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase tracking-widest opacity-80">Flash Reward Active</span>
-                  <span className="text-lg">5GB DATA COUPON (Claim ends in 8m 42s)</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  toast.success("CONGRATS! You claimed a 1GB Data Coupon: DAVEX-GIFT-2024");
-                  setPrizeActive(false);
-                }}
-                className="bg-black text-white px-6 py-2 rounded border border-black/10 hover:bg-black/80 transition-all text-xs font-mono uppercase tracking-widest relative z-10"
-              >
-                SCRATCH TO REVEAL
-              </button>
-            </motion.div>
+            <AnimatePresence>
+              {activePrize && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="bg-prize text-black p-4 rounded-lg flex flex-col md:flex-row items-center justify-between gap-4 font-bold overflow-hidden relative"
+                >
+                  <div className="absolute inset-0 prize-hatch opacity-20 pointer-events-none" />
+                  <div className="flex items-center gap-3 relative z-10">
+                    <Gift className="w-6 h-6" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase tracking-widest opacity-80">Flash Reward Active</span>
+                      <span className="text-lg">{activePrize.title}</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                        const res = await fetch(`${API_ROOT}/api/flash/${activePrize.id}/claim`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
+                        const data = await res.json();
+                        if (res.ok) { toast.success(data.message || 'Prize claimed'); setActivePrize(null); }
+                        else toast.error(data.message || 'Claim failed');
+                      } catch (err) { toast.error('Claim error'); }
+                    }}
+                    className="bg-black text-white px-6 py-2 rounded border border-black/10 hover:bg-black/80 transition-all text-xs font-mono uppercase tracking-widest relative z-10"
+                  >
+                    CLAIM
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           )}
         </AnimatePresence>
 
@@ -407,26 +473,28 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
               </div>
               <div className="lg:col-span-3 border border-border rounded-xl bg-black/20 flex flex-col">
                 <div className="flex-grow p-6 overflow-y-auto space-y-4">
-                  {[
-                    { user: "Dave (Mentor)", msg: "Welcome to the Linux Mastery session! Any issues with the root partition challenge?", time: "10:05", isMe: false },
-                    { user: "You", msg: "Checking the inodes now, think I found the leak.", time: "10:12", isMe: true },
-                    { user: "Sarah Lee", msg: "I'm seeing high context switching in the logs, could that be it?", time: "10:14", isMe: false },
-                  ].map((m, i) => (
-                    <div key={i} className={`flex flex-col ${m.isMe ? 'items-end' : 'items-start'}`}>
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex flex-col ${m.user === dashboardData?.profile?.name ? 'items-end' : 'items-start'}`}>
                       <div className="flex items-center gap-2 mb-1">
-                        {!m.isMe && <span className="text-[10px] font-bold text-primary uppercase">{m.user}</span>}
-                        <span className="text-[9px] text-text-dim font-mono">{m.time}</span>
+                        {m.user !== dashboardData?.profile?.name && <span className="text-[10px] font-bold text-primary uppercase">{m.user}</span>}
+                        <span className="text-[9px] text-text-dim font-mono">{new Date(m.time).toLocaleTimeString()}</span>
                       </div>
-                      <div className={`p-3 rounded-lg text-sm ${m.isMe ? 'bg-primary/20 border border-primary/30 text-white rounded-tr-none' : 'bg-white/5 border border-border text-gray-300 rounded-tl-none'}`}>
-                        {m.msg}
+                      <div className={`p-3 rounded-lg text-sm ${m.user === dashboardData?.profile?.name ? 'bg-primary/20 border border-primary/30 text-white rounded-tr-none' : 'bg-white/5 border border-border text-gray-300 rounded-tl-none'}`}>
+                        {m.text}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="p-4 border-t border-border">
-                  <div className="relative">
-                    <input type="text" placeholder="TRANSMIT_MESSAGE..." className="w-full bg-black border border-border rounded p-3 text-xs font-mono focus:border-primary focus:outline-none" />
-                    <button className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-white"><Zap className="w-4 h-4" /></button>
+                  <div className="relative flex gap-2">
+                    <input value={newMessage} onChange={(e)=>setNewMessage(e.target.value)} type="text" placeholder="TRANSMIT_MESSAGE..." className="flex-grow bg-black border border-border rounded p-3 text-xs font-mono focus:border-primary focus:outline-none" />
+                    <button onClick={() => {
+                      const text = newMessage.trim(); if (!text || !socketRef.current) return;
+                      const payload = { user: dashboardData?.profile?.name || 'Anonymous', text, time: new Date().toISOString() };
+                      socketRef.current.emit('chat:message', payload);
+                      setMessages(prev => [...prev, payload]);
+                      setNewMessage('');
+                    }} className="text-primary px-3 py-2 bg-primary/5 rounded">Send</button>
                   </div>
                 </div>
               </div>

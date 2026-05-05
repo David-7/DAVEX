@@ -48,13 +48,13 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
         
         <div className="text-center mb-10">
           <h2 className="text-xs font-mono font-bold text-primary uppercase tracking-[0.4em] mb-2">Authentication Layer</h2>
-          <h1 className="text-3xl font-normal text-white tracking-tight">Access Terminal</h1>
-          <p className="text-text-dim text-[11px] mt-2 uppercase tracking-widest font-bold">Secure Verification Required</p>
+          <h1 className="text-3xl font-normal text-white tracking-tight">Access Your Account</h1>
+          <p className="text-text-dim text-[11px] mt-2 uppercase tracking-widest font-bold">DAVEX Ltc.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Identity</label>
+            <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Email</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
               <input 
@@ -68,7 +68,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Credential</label>
+            <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
               <input 

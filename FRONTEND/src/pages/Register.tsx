@@ -69,13 +69,13 @@ export default function Register({ setUser }: { setUser: (user: any) => void }) 
         <div className="text-center mb-10">
           <h2 className="text-xs font-mono font-bold text-primary uppercase tracking-[0.4em] mb-2">Registration Layer</h2>
           <h1 className="text-3xl font-normal text-white italic tracking-tighter uppercase">Initialize Account</h1>
-          <p className="text-text-dim text-[11px] mt-2 uppercase tracking-widest font-bold">Secure Verification Required</p>
+          <p className="text-text-dim text-[11px] mt-2 uppercase tracking-widest font-bold">DAVEX LTC.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Legal Name</label>
+              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">FISRT_LAST NAMES</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 text-text-dim" />
                 <input 
@@ -89,7 +89,7 @@ export default function Register({ setUser }: { setUser: (user: any) => void }) 
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Identity</label>
+              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">EMAI</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 text-text-dim" />
                 <input 
@@ -106,7 +106,7 @@ export default function Register({ setUser }: { setUser: (user: any) => void }) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Admission Number</label>
+              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Admission Number (025J/1234)</label>
               <div className="relative">
                 <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 text-text-dim" />
                 <input 
@@ -120,7 +120,7 @@ export default function Register({ setUser }: { setUser: (user: any) => void }) 
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">Credential</label>
+              <label className="text-[10px] uppercase font-bold text-text-dim tracking-widest ml-1">PASSWORD</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 text-text-dim" />
                 <input 
@@ -182,7 +182,7 @@ export default function Register({ setUser }: { setUser: (user: any) => void }) 
           </p>
           <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-gray-600 uppercase tracking-[0.2em]">
             <ShieldCheck className="w-3 h-3" />
-            <span>OWASP-First Architecture Secured</span>
+            <span>DAVEX LTC - All rights reserved</span>
           </div>
         </div>
       </motion.div>

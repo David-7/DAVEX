@@ -38,15 +38,15 @@ export default function Home() {
             transition={{ duration: 0.8 }}
           >
             <span className="inline-block py-1 px-3 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-mono font-bold uppercase tracking-[0.3em] mb-6">
-              Next-Gen Learning OS
+              Next-Gen LMS
             </span>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 leading-[1.1]">
               MASTER YOUR TECH <br />
               <span className="bg-gradient-to-r from-primary to-green-400 bg-clip-text text-transparent">BEYOND LIMITS.</span>
             </h1>
             <p className="max-w-2xl mx-auto text-text-dim text-lg mb-10 leading-relaxed">
-              DAVEX is the ultimate Learning Management System for IT professionals. 
-              Real-time skill battles, premium resources, and a focus on growth.
+              DAVEX is the ultimate Learning Management System for aspiring IT professionals in KANDARA TECHNICAL COLLEGE. <br></br>
+              It features real-time skill battles, premium resources, and a focus on growth.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -85,7 +85,7 @@ export default function Home() {
               { 
                 icon: <Globe className="w-6 h-6 text-primary" />, 
                 title: "Global Network", 
-                desc: "Connect with IT professionals and mentors across the globe." 
+                desc: "Learn what the global masters have curated" 
               }
             ].map((f, i) => (
               <motion.div
@@ -124,14 +124,14 @@ export default function Home() {
                 DAVEX is a movement of passionate peers growing together through practical learning, real-world challenges, and the drive to become truly job ready.
               </p>
               <p>
-                We believe change begins when people stop waiting and start building. Through shared knowledge, hands-on experience, mentorship, and competitive problem-solving, we push each other beyond theory into real skill, confidence, and professional readiness.
+                We believe change begins when people stop waiting and start building. Through shared knowledge, hands-on experience, mentorship, and competitive problem-solving, we push each other beyond theory into real skill, confidence and professional readiness.
               </p>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
               {[
                 "IT Support", "Graphic Design", "Web Development", 
-                "Networking", "Linux", "Cybersecurity", 
+                "Networking", "Linux", "Skills Upgrade", 
                 "Digital Marketing", "Cloud Infrastructure"
               ].map((skill) => (
                 <div key={skill} className="p-4 bg-white/5 border border-white/10 rounded-lg font-mono text-[10px] uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors">
@@ -188,7 +188,7 @@ export default function Home() {
               <ul className="space-y-4 mb-10 flex-grow">
                 {[
                   "Core learning materials", "Selected notes", 
-                  "Guides and resources", "Community discussions",
+                  , "Community discussions",
                   "Limited mentorship support", "Beginner practical tasks",
                   "Basic progress tracking"
                 ].map(item => (
@@ -197,7 +197,16 @@ export default function Home() {
                   </li>
                 ))}
                 <li className="flex items-center gap-3 text-[11px] font-mono text-red-500/60 line-through">
-                  Premium Drive Access
+                  Community Drive Access
+                </li>
+                 <li className="flex items-center gap-3 text-[11px] font-mono text-red-500/60 line-through">
+                  Personalized portfolio video
+                </li>
+                 <li className="flex items-center gap-3 text-[11px] font-mono text-red-500/60 line-through">
+                  Personalized guide
+                </li>
+                 <li className="flex items-center gap-3 text-[11px] font-mono text-red-500/60 line-through">
+                  Professional support
                 </li>
               </ul>
 
@@ -256,7 +265,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-xs font-mono font-bold text-primary uppercase tracking-[0.5em] mb-4">Connect</h2>
+            <h2 className="text-xs font-mono font-bold text-primary uppercase tracking-[0.5em] mb-4">Let's Connect</h2>
             <h3 className="text-4xl md:text-5xl font-bold tracking-tighter uppercase mb-8">Reach the node</h3>
           </motion.div>
 
@@ -267,8 +276,8 @@ export default function Home() {
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-widest text-text-dim mb-1">Direct Comms</h4>
-                  <p className="text-white font-mono">support@davex.lms</p>
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-widest text-text-dim mb-1">Direct Email</h4>
+                  <p className="text-white font-mono">icursoride@gmail.com</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -276,8 +285,8 @@ export default function Home() {
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-widest text-text-dim mb-1">Secure Line</h4>
-                  <p className="text-white font-mono">+254 700 000 000</p>
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-widest text-text-dim mb-1">Comm Line</h4>
+                  <p className="text-white font-mono">+254 701 759 905</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -286,7 +295,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h4 className="text-xs font-mono font-bold uppercase tracking-widest text-text-dim mb-1">HQ Site</h4>
-                  <p className="text-white font-mono">Nairobi IT District, Level 4</p>
+                  <p className="text-white font-mono">KANDARA TECH COLLEGE, ICT Department</p>
                 </div>
               </div>
             </div>
@@ -295,16 +304,16 @@ export default function Home() {
               <form className="space-y-4">
                 <input 
                   type="text" 
-                  placeholder="SUBJECT_LINE"
+                  placeholder="SUBJECT_LINE/ ABOUT"
                   className="w-full bg-black border border-border rounded p-4 text-xs font-mono text-white focus:border-primary focus:outline-none"
                 />
                 <textarea 
                   rows={4}
-                  placeholder="ENCRYPTED_MESSAGE"
+                  placeholder="YOUR_MESSAGE"
                   className="w-full bg-black border border-border rounded p-4 text-xs font-mono text-white focus:border-primary focus:outline-none"
                 />
                 <button className="w-full bg-primary text-black font-bold py-4 rounded text-xs uppercase tracking-widest font-mono">
-                  TRANSMIT SIGNAL
+                  SEND MESSAGE
                 </button>
               </form>
             </div>

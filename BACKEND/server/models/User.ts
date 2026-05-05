@@ -8,6 +8,9 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ["ADMIN", "TEACHER", "STUDENT"], default: "STUDENT" },
   access: { type: Boolean, default: true },
   points: { type: Number, default: 0 },
+  completedLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'LessonUnit' }],
+  courseEnrolled: { type: String, default: '' },
+  instructorName: { type: String, default: '' },
   admissionNumber: { type: String },
   package: { type: String, enum: ["BASIC", "PREMIUM"], default: "BASIC" }
 }, { timestamps: true });

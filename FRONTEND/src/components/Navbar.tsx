@@ -7,6 +7,8 @@ import { API_ROOT } from "../config";
 export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  // logo served from public/logo.png
+  const logoUrl: string = '/logo.png';
 
   const handleLogout = async () => {
     // include CSRF token for logout
@@ -47,9 +49,13 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded flex items-center justify-center font-black text-black text-xl italic shadow-[0_0_15px_rgba(0,184,81,0.3)]">
-                D
-              </div>
+              {logoUrl ? (
+                <img src={logoUrl} alt="DAVEX" className="w-8 h-8 rounded object-cover shadow-[0_0_15px_rgba(0,184,81,0.15)]" />
+              ) : (
+                <div className="w-8 h-8 bg-primary rounded flex items-center justify-center font-black text-black text-xl italic shadow-[0_0_15px_rgba(0,184,81,0.3)]">
+                  D
+                </div>
+              )}
               <span className="font-bold text-xl tracking-tighter text-white group-hover:text-primary transition-colors">
                 DAVEX
               </span>

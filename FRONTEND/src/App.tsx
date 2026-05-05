@@ -15,6 +15,7 @@ import AdminDashboard from "./pages/Dashboard/AdminDashboard.tsx";
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     // Check if user is logged in
@@ -32,9 +33,11 @@ export default function App() {
       }
     };
     checkAuth();
+    // ensure splash doesn't show longer than 2s
+    const t = setTimeout(() => setShowSplash(false), 2000);
+    return () => clearTimeout(t);
   }, []);
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-primary font-mono uppercase tracking-[0.2em]">Initializing_Davex_OS...</div>;
+  if (loading && showSplash) return <div className="min-h-screen flex items-center justify-center bg-black text-primary font-mono uppercase tracking-[0.2em]">Initializing_Davex...</div>;
 
   return (
     <BrowserRouter>

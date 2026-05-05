@@ -42,6 +42,11 @@ router.post('/:id/submit', protect, async (req, res) => {
     const user = (req as any).user;
     const { answer } = req.body;
     const sub = await Submission.create({ battle: battle._id, user: user._id, answer, status: 'pending' });
+    // emit realtime submission event
+    try {
+      const io = (req as any).app.get('io');
+      if (io) io.emit('battle:submission', { submissionId: sub._id, battle: battle._id, user: { _id: user._id, name: user.name } });
+    } catch (e) { }
     res.status(201).json({ message: 'Submission received. Await mentor evaluation.', submissionId: sub._id });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -90,6 +95,11 @@ router.post('/:id/submissions/:sid/evaluate', protect, authorize('ADMIN'), async
       const award = (battle && battle.points && battle.points > 0) ? battle.points : 5;
       await Points.create({ user: sub.user, points: award, reason: 'skill-battle-win' });
       await User.findByIdAndUpdate(sub.user, { $inc: { points: award } });
+      // emit realtime accepted event
+      try {
+        const io = (req as any).app.get('io');
+        if (io) io.emit('battle:accepted', { submissionId: sub._id, battle: req.params.id, user: sub.user, points: award });
+      } catch (e) { }
 
       return res.json({ message: 'Submission accepted and points awarded', points: award });
     } else {

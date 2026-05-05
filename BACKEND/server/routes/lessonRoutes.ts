@@ -26,6 +26,7 @@ router.post("/", protect, authorize("ADMIN"), async (req, res) => {
 });
 
 // Mark lesson as complete (Admin only)
+// Mark lesson as complete (Admin only)
 router.patch("/:id/complete", protect, authorize("ADMIN"), async (req, res) => {
   try {
     const lesson = await LessonUnit.findByIdAndUpdate(
@@ -38,6 +39,28 @@ router.patch("/:id/complete", protect, authorize("ADMIN"), async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: "Error updating lesson status" });
   }
+});
+
+// Student: mark lesson completed for themselves
+router.post('/:id/complete', protect, async (req: any, res) => {
+  try {
+    const lessonId = req.params.id;
+    const user = req.user;
+    if (!lessonId) return res.status(400).json({ message: 'lesson id required' });
+    // ensure lesson exists
+    const lesson = await LessonUnit.findById(lessonId);
+    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    // add if not present
+    const already = (user.completedLessons || []).some((id: any) => id.toString() === lessonId.toString());
+    if (!already) {
+      await (await import('../models/User.js')).User.findByIdAndUpdate(user._id, { $push: { completedLessons: lesson._id } });
+    }
+    // compute progress
+    const total = await LessonUnit.countDocuments();
+    const u = await (await import('../models/User.js')).User.findById(user._id).select('completedLessons');
+    const progress = total === 0 ? 0 : Math.round(((u.completedLessons?.length || 0) / total) * 100);
+    res.json({ message: 'Marked completed', progress });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
 
 // Delete lesson (Admin only)
