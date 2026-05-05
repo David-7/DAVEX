@@ -363,7 +363,7 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                       </div>
                     </>
                   ) : (
-                    <div className="p-4 text-text-dim">No active skill battles at the moment.</div>
+                    <div className="p-6 text-center text-text-dim bg-black/20 rounded">No active skill battles at the moment.</div>
                   )}
                 </div>
 
@@ -488,12 +488,21 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                 <div className="p-4 border-t border-border">
                   <div className="relative flex gap-2">
                     <input value={newMessage} onChange={(e)=>setNewMessage(e.target.value)} type="text" placeholder="TRANSMIT_MESSAGE..." className="flex-grow bg-black border border-border rounded p-3 text-xs font-mono focus:border-primary focus:outline-none" />
-                    <button onClick={() => {
-                      const text = newMessage.trim(); if (!text || !socketRef.current) return;
+                    <button onClick={async () => {
+                      const text = newMessage.trim();
+                      if (!text) return toast.error('Enter a message');
+                      const socket = socketRef.current;
+                      if (!socket || !socket.connected) return toast.error('Chat disconnected');
                       const payload = { user: dashboardData?.profile?.name || 'Anonymous', text, time: new Date().toISOString() };
-                      socketRef.current.emit('chat:message', payload);
-                      setMessages(prev => [...prev, payload]);
-                      setNewMessage('');
+                      // use acknowledgement to confirm server received/persisted
+                      socket.emit('chat:message', payload, (ack: any) => {
+                        if (ack && ack.ok) {
+                          setMessages(prev => [...prev, ack.message || payload]);
+                          setNewMessage('');
+                        } else {
+                          toast.error((ack && ack.error) || 'Message failed to send');
+                        }
+                      });
                     }} className="text-primary px-3 py-2 bg-primary/5 rounded">Send</button>
                   </div>
                 </div>

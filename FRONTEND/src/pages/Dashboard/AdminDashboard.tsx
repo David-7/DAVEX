@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import CodeModal from '../../components/CodeModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PromptModal from '../../components/PromptModal';
+import LoadingBreadcrumb from '../../components/LoadingBreadcrumb';
 
 export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("overview");
@@ -264,7 +265,7 @@ export default function AdminDashboard() {
                         } catch (err) { console.error(err); toast.error('Failed'); }
                         finally { setLoadingAction(false); }
                       }, confirmLabel: 'Mark Paid' })} className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all">
-                        {loadingAction ? <span className="text-text-dim">Processing...</span> : <Check className="w-3 h-3" />}
+                        {loadingAction ? <LoadingBreadcrumb text="Processing..." /> : <Check className="w-3 h-3" />}
                       </button>
                       <button onClick={() => setConfirmState({ open: true, title: 'Reject Payment', message: 'Reject and remove this pending payment?', onConfirm: async () => {
                         setConfirmState((s:any)=>({ ...s, open:false }));
@@ -572,6 +573,7 @@ export default function AdminDashboard() {
                         <td className="py-4">
                           <div className="flex gap-2">
                             <button onClick={async () => {
+                              setLoadingAction(true);
                               try {
                                 const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                                 const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
@@ -579,9 +581,13 @@ export default function AdminDashboard() {
                                 toast.success('Marked paid');
                                 setPendingPayments(prev => prev.filter(x => x._id !== p._id));
                               } catch (err) { console.error(err); toast.error('Request failed'); }
-                            }} className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
+                              finally { setLoadingAction(false); }
+                            }} className="text-[10px] font-bold uppercase text-primary hover:underline">
+                              {loadingAction ? <LoadingBreadcrumb text="Verifying..." /> : 'Verify'}
+                            </button>
                             <button onClick={() => setConfirmState({ open: true, title: 'Flag Transaction', message: 'Flag and remove this transaction?', onConfirm: async () => {
                               setConfirmState((s:any)=>({ ...s, open:false }));
+                              setLoadingAction(true);
                               try {
                                 const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                                 const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
@@ -589,29 +595,16 @@ export default function AdminDashboard() {
                                 toast.success('Flagged/removed');
                                 setPendingPayments(prev => prev.filter(x => x._id !== p._id));
                               } catch (err) { console.error(err); toast.error('Request failed'); }
+                              finally { setLoadingAction(false); }
                             }, confirmLabel: 'Flag' })} className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
                           </div>
                         </td>
                       </tr>
                     ))
                   ) : (
-                    [
-                      { name: "John Doe", ref: "QRS123456", amount: "KSH 250", method: "M-PESA" },
-                      { name: "Jane Smith", ref: "PAY-998877", amount: "KSH 250", method: "PAYPAL" },
-                    ].map((p, i) => (
-                      <tr key={i} className="hover:bg-white/5">
-                        <td className="py-4 font-bold">{p.name}</td>
-                        <td className="py-4 font-mono text-xs">{p.ref}</td>
-                        <td className="py-4 font-mono">{p.amount}</td>
-                        <td className="py-4 text-[10px] font-bold">{p.method}</td>
-                        <td className="py-4">
-                          <div className="flex gap-2">
-                            <button className="text-[10px] font-bold uppercase text-primary hover:underline">Verify</button>
-                            <button className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-text-dim">No pending manual payments found.</td>
+                    </tr>
                   )}
                 </tbody>
               </table>

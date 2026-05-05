@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, Rocket, User, LogOut, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,6 +9,7 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
   const navigate = useNavigate();
   // logo served from public/logo.png
   const logoUrl: string = '/logo.png';
+  const location = useLocation();
 
   const handleLogout = async () => {
     // include CSRF token for logout
@@ -56,15 +57,12 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
                   D
                 </div>
               )}
-              <span className="font-bold text-xl tracking-tighter text-white group-hover:text-primary transition-colors">
-                DAVEX
-              </span>
             </div>
           </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
+            {!location.pathname.startsWith('/dashboard') && navLinks.map((link) => (
               <a 
                 key={link.name} 
                 href={link.path}
@@ -77,25 +75,18 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
             
             {user ? (
               <div className="flex items-center gap-6">
-                <Link 
-                  to="/dashboard" 
-                  className="bg-primary/5 text-primary px-4 py-2 rounded border border-primary/20 flex items-center gap-2 hover:bg-primary hover:text-black transition-all text-xs font-mono font-bold"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  DASHBOARD
-                </Link>
                 <button onClick={handleLogout} className="text-text-dim hover:text-white">
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
-            ) : (
+            ) : (!location.pathname.startsWith('/dashboard') && (
               <Link 
                 to="/login" 
                 className="bg-primary text-black px-6 py-2 rounded font-mono font-bold text-xs hover:bg-primary-dark transition-all"
               >
                 SIGN IN
               </Link>
-            )}
+            ))}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -116,7 +107,7 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
             exit={{ opacity: 0, y: -20 }}
             className="md:hidden bg-shiny-black border-b border-white/10 px-4 py-6 flex flex-col gap-4"
           >
-            {navLinks.map((link) => (
+            {!location.pathname.startsWith('/dashboard') && navLinks.map((link) => (
               <a 
                 key={link.name} 
                 href={link.path} 
@@ -128,17 +119,9 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
             ))}
             {user ? (
               <>
-                <Link 
-                  to="/dashboard" 
-                  onClick={() => setIsOpen(false)}
-                  className="bg-primary/10 text-primary p-3 rounded-xl flex items-center gap-2"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Dashboard
-                </Link>
                 <button onClick={handleLogout} className="text-red-400 text-left py-2">Logout</button>
               </>
-            ) : (
+            ) : (!location.pathname.startsWith('/dashboard') && (
               <Link 
                 to="/login" 
                 onClick={() => setIsOpen(false)}
@@ -146,7 +129,7 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
               >
                 Get Started
               </Link>
-            )}
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
