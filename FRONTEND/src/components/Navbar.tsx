@@ -117,6 +117,14 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
                 {link.name}
               </a>
             ))}
+            {/* If on student dashboard, surface the internal dashboard tabs here for small screens */}
+            {location.pathname.startsWith('/dashboard') && user && user.role !== 'ADMIN' && (
+              <div className="pt-4 border-t border-white/5">
+                {['overview','courses','skill-battle','materials','schedule','chat','leaderboard'].map((t) => (
+                  <button key={t} onClick={() => { window.location.hash = t; setIsOpen(false); }} className="w-full text-left py-3 uppercase font-mono text-xs tracking-widest text-text-dim">{t.replace('-',' ')}</button>
+                ))}
+              </div>
+            )}
             {user ? (
               <>
                 <button onClick={handleLogout} className="text-red-400 text-left py-2">Logout</button>

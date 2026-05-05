@@ -148,7 +148,7 @@ async function startServer() {
         catch (e) { }
       });
 
-      socket.on('chat:message', async (msg) => {
+      socket.on('chat:message', async (msg, ack) => {
         // enforce simple per-user token-bucket rate limit
         try {
           const { allowSend, timeUntilRefill } = await import('./server/utils/chatRateLimiter.js');
@@ -188,6 +188,13 @@ async function startServer() {
           text,
           time: msg.time ? new Date(msg.time) : new Date()
         };
+
+        // acknowledge receipt to sender (non-blocking)
+        try {
+          if (typeof ack === 'function') {
+            ack({ ok: true, message: payload });
+          }
+        } catch (e) { }
 
         // persist and broadcast to channel
         (async () => {

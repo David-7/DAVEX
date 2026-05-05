@@ -12,7 +12,10 @@ import { API_ROOT } from "../../config";
 import { io, Socket } from 'socket.io-client';
 
 export default function StudentDashboard({ user: initialUser }: { user: any }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.hash) return window.location.hash.replace('#','');
+    return 'overview';
+  });
   const [prizeActive, setPrizeActive] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -79,6 +82,10 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
     };
     fetchData();
 
+    // react to hash changes so Navbar mobile tabs can set the active tab
+    const onHash = () => { if (window.location.hash) setActiveTab(window.location.hash.replace('#','')); };
+    window.addEventListener('hashchange', onHash);
+
     // Setup socket.io for chat and battle events
     try {
       const endpoint = API_ROOT || window.location.origin;
@@ -105,7 +112,7 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
       });
     } catch (err) { console.warn('Socket init failed', err); }
 
-    return () => { socketRef.current?.disconnect(); };
+    return () => { socketRef.current?.disconnect(); window.removeEventListener('hashchange', onHash); };
   }, []);
 
   // identify/join channel once we have profile info
@@ -163,11 +170,14 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center font-mono text-primary">INITIALIZING_SECURE_WORKSPACE...</div>;
 
   const stats = [
-    { label: "Course Enrolled", value: dashboardData?.course?.enrolled, icon: <BookOpen />, sub: `Instructor: ${dashboardData?.course?.instructor}` },
-    { label: "Lessons Covered", value: "14 / 28", icon: <History />, sub: "50% Complete" },
+    { label: "Course Enrolled", value: dashboardData?.course?.enrolled ?? 'No data', icon: <BookOpen />, sub: `Instructor: ${dashboardData?.course?.instructor ?? 'TBD'}` },
+    { label: "Lessons Covered", value: dashboardData?.course ? `${dashboardData.course.covered ?? 0} / ${dashboardData.course.total ?? 0}` : 'No data', icon: <History />, sub: dashboardData?.course ? `${Math.floor(((dashboardData.course.covered||0)/(dashboardData.course.total||1))*100)}% Complete` : 'N/A' },
     { label: "Learning Package", value: dashboardData?.profile?.package || "BASIC", icon: <Zap className={dashboardData?.profile?.package === 'PREMIUM' ? 'text-primary' : ''} />, sub: dashboardData?.profile?.package === 'BASIC' ? "Upgrade for full access" : "Active Premium" },
-    { label: "Total Skill Points", value: dashboardData?.profile?.points || "0", icon: <Trophy className="text-primary" />, sub: "Rank #4 this week" },
+    { label: "Total Skill Points", value: dashboardData?.profile?.points ?? 0, icon: <Trophy className="text-primary" />, sub: "Weekly leaderboard" },
   ];
+
+  // normalize package display
+  const accountPackage = String(dashboardData?.profile?.package || 'BASIC').toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#050505] p-4 md:p-8 pt-24 text-white">
@@ -262,9 +272,9 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                 UPGRADE TO PREMIUM
               </button>
             )}
-            <div className={`bg-primary/10 border border-primary text-primary px-3 py-1 rounded text-[10px] font-bold tracking-widest uppercase mt-4 ${dashboardData?.profile?.package === 'PREMIUM' ? 'opacity-100' : 'opacity-40'}`}>
-              DAVEX {dashboardData?.profile?.package}
-            </div>
+              <div className={`bg-primary/10 border border-primary text-primary px-3 py-1 rounded text-[10px] font-bold tracking-widest uppercase mt-4 ${accountPackage === 'PREMIUM' ? 'opacity-100' : 'opacity-60'}`}>
+                {accountPackage}
+              </div>
             {dashboardData?.profile?.package === 'BASIC' && (
               <div className="technical-card max-w-md mt-4">
                 <h4 className="text-[11px] text-text-dim uppercase tracking-widest mb-2">Redeem Manual Payment Code</h4>
@@ -333,15 +343,25 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
                   <div>
                     <h2 className="text-xs font-bold text-text-dim uppercase tracking-widest mb-1 flex items-center gap-2">
-                      Active Skill Battle 
-                      <span className="text-red-500 font-mono text-[14px]">04:12:09 REMAINING</span>
+                      Active Skill Battle
+                      {activeBattle ? (
+                        <span className="text-red-500 font-mono text-[14px]">{(() => {
+                          const now = new Date();
+                          const exp = new Date(activeBattle.expireAt);
+                          const diff = Math.max(0, Math.floor((exp.getTime()-now.getTime())/1000));
+                          const hh = String(Math.floor(diff/3600)).padStart(2,'0');
+                          const mm = String(Math.floor((diff%3600)/60)).padStart(2,'0');
+                          const ss = String(diff%60).padStart(2,'0');
+                          return `${hh}:${mm}:${ss} REMAINING`;
+                        })()}</span>
+                      ) : null}
                     </h2>
-                    <h3 className="text-xl font-medium tracking-tight">Advanced Linux File System Troubleshooting</h3>
+                    <h3 className="text-xl font-medium tracking-tight">{activeBattle ? activeBattle.title : 'No active skill battles'}</h3>
                   </div>
                 </div>
-                
+
                 <p className="text-sm leading-relaxed text-text-dim mb-8">
-                  Task: Diagnose why the root partition is reporting 100% usage despite visible file totals showing 40% availability. Points: 50 Marks.
+                  {activeBattle ? (activeBattle.question || 'Task details not available.') : 'No active battles at the moment — take part in LMS actions to grow your data and await upcoming battles.'}
                 </p>
 
                 <div className="space-y-4">

@@ -58,6 +58,8 @@ export default function AdminDashboard() {
   }, []);
   const [battleSubmissions, setBattleSubmissions] = useState<any[]>([]);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [showCreateBattle, setShowCreateBattle] = useState(false);
+  const [newBattle, setNewBattle] = useState({ title: '', question: '', startAt: '', expireAt: '', points: 10 });
   const [showCodeModal, setShowCodeModal] = useState<{ open: boolean; code?: string }>({ open: false });
   const [chatRecent, setChatRecent] = useState<any[]>([]);
   const [chatFlagged, setChatFlagged] = useState<any[]>([]);
@@ -97,6 +99,60 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
+      {/* Skill Battle View */}
+      {activeView === 'skill-battle' && (
+        <div className="technical-card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest">Skill Battles</h3>
+            <button onClick={() => setShowCreateBattle(true)} className="bg-primary/5 text-primary px-4 py-2 rounded text-xs font-bold">New Battle</button>
+          </div>
+          {showCreateBattle && (
+            <div className="border border-border p-4 mb-4 rounded">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input value={newBattle.title} onChange={(e)=>setNewBattle({...newBattle, title:e.target.value})} placeholder="Title" className="p-3 bg-black border border-border rounded" />
+                <input value={newBattle.points} onChange={(e)=>setNewBattle({...newBattle, points: parseInt(e.target.value||'0')})} placeholder="Points" type="number" className="p-3 bg-black border border-border rounded" />
+                <input value={newBattle.startAt} onChange={(e)=>setNewBattle({...newBattle, startAt:e.target.value})} placeholder="StartAt (ISO)" className="p-3 bg-black border border-border rounded" />
+                <input value={newBattle.expireAt} onChange={(e)=>setNewBattle({...newBattle, expireAt:e.target.value})} placeholder="ExpireAt (ISO)" className="p-3 bg-black border border-border rounded" />
+              </div>
+              <textarea value={newBattle.question} onChange={(e)=>setNewBattle({...newBattle, question:e.target.value})} placeholder="Question / Task" className="w-full p-3 bg-black border border-border rounded mt-3" />
+              <div className="flex gap-2 justify-end mt-3">
+                <button onClick={() => setShowCreateBattle(false)} className="px-4 py-2 border border-border rounded">Cancel</button>
+                <button onClick={async () => {
+                  if (!newBattle.title || !newBattle.question) return toast.error('Title and question required');
+                  setLoadingAction(true);
+                  try {
+                    const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                    const res = await fetch(`${API_ROOT}/api/skills`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json','x-csrf-token': csrfToken || '' }, body: JSON.stringify(newBattle) });
+                    if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); throw new Error(err.message||'Failed'); }
+                    const created = await res.json();
+                    toast.success('Skill battle created');
+                    setShowCreateBattle(false);
+                    setNewBattle({ title:'', question:'', startAt:'', expireAt:'', points:10 });
+                  } catch (err:any) { console.error(err); toast.error(err.message||'Create failed'); }
+                  finally { setLoadingAction(false); }
+                }} className="px-4 py-2 rounded bg-primary text-black font-bold">Create</button>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h4 className="text-xs text-text-dim uppercase mb-3">Recent Submissions</h4>
+            {battleSubmissions.length === 0 ? (
+              <div className="text-text-dim">No submissions yet.</div>
+            ) : (
+              battleSubmissions.map((s:any)=> (
+                <div key={s._id} className="p-3 bg-black/20 rounded mb-2">
+                  <div className="flex justify-between">
+                    <div className="font-bold">{s.battle?.title || 'Battle'}</div>
+                    <div className="text-text-dim text-xs">{new Date(s.createdAt).toLocaleString()}</div>
+                  </div>
+                  <div className="text-sm mt-2">{String(s.answer).slice(0,200)}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       {/* Mobile Menu Overlay */}
