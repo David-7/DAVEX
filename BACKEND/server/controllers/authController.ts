@@ -31,12 +31,14 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const user = await User.create(validatedData);
+    const { package: _pkg, ...userData } = validatedData as any;
+    const user = await User.create({ ...userData, package: "BASIC" });
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "30d" });
 
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
@@ -59,11 +61,15 @@ export const login = async (req: Request, res: Response) => {
     const user: any = await User.findOne({ email });
 
     if (user && (await user.comparePassword(password))) {
+      if (user.access === false) {
+        return res.status(403).json({ message: "Access revoked" });
+      }
       const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "30d" });
 
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
 
@@ -95,7 +101,12 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  res.cookie("token", "", { httpOnly: true, expires: new Date(0) });
+  res.cookie("token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    expires: new Date(0)
+  });
   res.status(200).json({ message: "Logged out successfully" });
 };
 

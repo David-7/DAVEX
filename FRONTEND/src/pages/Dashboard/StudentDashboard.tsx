@@ -34,7 +34,7 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dashRes, sessionRes] = await Promise.all([
+        const [dashRes, sessionRes, leaderboardRes] = await Promise.all([
           fetch(`${API_ROOT}/api/dashboard/student/summary`, { credentials: 'include' }),
           fetch(`${API_ROOT}/api/dashboard/sessions`, { credentials: 'include' }),
           fetch(`${API_ROOT}/api/dashboard/leaderboard`, { credentials: 'include' })
@@ -42,14 +42,10 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
         
         if (dashRes.ok) setDashboardData(await dashRes.json());
         if (sessionRes.ok) setSessions(await sessionRes.json());
-        // leaderboard may be the 3rd response
-        try {
-          const lbRes = await fetch(`${API_ROOT}/api/dashboard/leaderboard`, { credentials: 'include' });
-          if (lbRes.ok) setLeaderboard(await lbRes.json());
-        } catch (err) { console.warn('Leaderboard fetch failed', err); }
+        if (leaderboardRes.ok) setLeaderboard(await leaderboardRes.json());
         // fetch active battle
         try {
-          const bRes = await fetch(`${API_ROOT}/api/skill/active`, { credentials: 'include' });
+          const bRes = await fetch(`${API_ROOT}/api/skills/active`, { credentials: 'include' });
           if (bRes.ok) {
             const arr = await bRes.json();
             setActiveBattle(arr?.[0] || null);
@@ -66,7 +62,7 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
         } catch (err) { console.warn('Active prize fetch failed', err); }
         // fetch my submissions
         try {
-          const mRes = await fetch(`${API_ROOT}/api/skill/my-submissions`, { credentials: 'include' });
+          const mRes = await fetch(`${API_ROOT}/api/skills/my-submissions`, { credentials: 'include' });
           if (mRes.ok) setMySubmissions(await mRes.json());
         } catch (err) { console.warn('My submissions fetch failed', err); }
         // fetch recent chat messages
@@ -133,7 +129,7 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
       // get CSRF token
       const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
       const { csrfToken } = await tokenRes.json().catch(()=>({}));
-      const res = await fetch(`${API_ROOT}/api/skill/${activeBattle._id}/submit`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ answer: submissionText }) });
+      const res = await fetch(`${API_ROOT}/api/skills/${activeBattle._id}/submit`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ answer: submissionText }) });
       const data = await res.json();
       if (res.ok) { toast.success(data.message || 'Submitted'); setSubmitted(true); }
       else toast.error(data.message || 'Submit failed');
@@ -152,16 +148,25 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
         const { csrfToken } = await tokenRes.json();
         const res = await fetch(`${API_ROOT}/api/transactions/redeem-code`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ code }) });
         const data = await res.json();
-        if (res.ok) { toast.success(data.message || 'Redeemed'); window.location.reload(); }
+        if (res.ok) {
+          toast.success(data.message || 'Redeemed');
+          setCode('');
+          setDashboardData((prev: any) => prev ? ({
+            ...prev,
+            profile: { ...prev.profile, package: 'PREMIUM' }
+          }) : prev);
+        }
         else toast.error(data.message || 'Redeem failed');
       } catch (err) { toast.error('Redeem error'); }
       finally { setBusy(false); }
     };
     return (
       <div className="space-y-3">
-        <input value={code} onChange={(e)=>setCode(e.target.value)} placeholder="Enter redeem code" className="w-full p-3 bg-black border border-border rounded" />
+        <input value={code} onChange={(e)=>setCode(e.target.value)} placeholder="Enter redeem code" disabled={busy} className="w-full p-3 bg-black border border-border rounded disabled:opacity-60" />
         <div className="flex gap-2">
-          <button onClick={handleRedeem} disabled={busy} className="bg-primary text-black px-6 py-2 rounded">Redeem</button>
+          <button onClick={handleRedeem} disabled={busy} className="bg-primary text-black px-6 py-2 rounded disabled:opacity-60">
+            {busy ? 'Redeeming...' : 'Redeem'}
+          </button>
         </div>
       </div>
     );

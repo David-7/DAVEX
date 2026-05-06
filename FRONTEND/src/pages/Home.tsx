@@ -187,8 +187,8 @@ export default function Home() {
               
               <ul className="space-y-4 mb-10 flex-grow">
                 {[
-                  "Core learning materials", "Selected notes", 
-                  , "Community discussions",
+                  "Core learning materials", "Selected notes",
+                  "Community discussions",
                   "Limited mentorship support", "Beginner practical tasks",
                   "Basic progress tracking"
                 ].map(item => (

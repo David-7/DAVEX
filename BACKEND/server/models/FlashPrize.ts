@@ -7,6 +7,7 @@ const flashPrizeSchema = new mongoose.Schema({
   expirySeconds: { type: Number, required: true },
   claimedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   claimedAt: { type: Date, default: null },
+  claimedByList: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   singleWinner: { type: Boolean, default: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });

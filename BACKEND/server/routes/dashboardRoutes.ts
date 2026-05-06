@@ -72,7 +72,13 @@ router.get('/student/summary', protect, async (req: any, res) => {
 
     res.json({
       profile: { name: user.name, studentId: user.admissionNumber || 'N/A', package: user.package || 'BASIC', points: totalPoints, weeklyPoints },
-      course: { enrolled: user.courseEnrolled || 'Not enrolled', instructor: user.instructorName || 'TBD', progress }
+      course: {
+        enrolled: user.courseEnrolled || 'Not enrolled',
+        instructor: user.instructorName || 'TBD',
+        progress,
+        covered: completed,
+        total: totalLessons
+      }
     });
   } catch (err: any) {
     console.error('Student summary error', err);

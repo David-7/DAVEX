@@ -44,8 +44,8 @@ export default function AdminDashboard() {
         const uRes = await fetch(`${API_ROOT}/api/users`, { credentials: 'include' });
         if (uRes.ok) setUsers(await uRes.json());
         // fetch recent submissions
-        try {
-          const sRes = await fetch(`${API_ROOT}/api/skill/submissions`, { credentials: 'include' });
+          try {
+            const sRes = await fetch(`${API_ROOT}/api/skills/submissions`, { credentials: 'include' });
           if (sRes.ok) setBattleSubmissions(await sRes.json());
         } catch (err) { console.warn('Failed fetching submissions', err); }
       } catch (err) {
@@ -57,7 +57,11 @@ export default function AdminDashboard() {
     fetchAdminData();
   }, []);
   const [battleSubmissions, setBattleSubmissions] = useState<any[]>([]);
-  const [loadingAction, setLoadingAction] = useState(false);
+  const [processingTxId, setProcessingTxId] = useState<string | null>(null);
+  const [creatingManual, setCreatingManual] = useState(false);
+  const [creatingBattle, setCreatingBattle] = useState(false);
+  const [creatingPrize, setCreatingPrize] = useState(false);
+  const [togglingAccessId, setTogglingAccessId] = useState<string | null>(null);
   const [showCreateBattle, setShowCreateBattle] = useState(false);
   const [newBattle, setNewBattle] = useState({ title: '', question: '', startAt: '', expireAt: '', points: 10 });
   const [showCodeModal, setShowCodeModal] = useState<{ open: boolean; code?: string }>({ open: false });
@@ -119,7 +123,7 @@ export default function AdminDashboard() {
                 <button onClick={() => setShowCreateBattle(false)} className="px-4 py-2 border border-border rounded">Cancel</button>
                 <button onClick={async () => {
                   if (!newBattle.title || !newBattle.question) return toast.error('Title and question required');
-                  setLoadingAction(true);
+                  setCreatingBattle(true);
                   try {
                     const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
                     const res = await fetch(`${API_ROOT}/api/skills`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json','x-csrf-token': csrfToken || '' }, body: JSON.stringify(newBattle) });
@@ -129,8 +133,10 @@ export default function AdminDashboard() {
                     setShowCreateBattle(false);
                     setNewBattle({ title:'', question:'', startAt:'', expireAt:'', points:10 });
                   } catch (err:any) { console.error(err); toast.error(err.message||'Create failed'); }
-                  finally { setLoadingAction(false); }
-                }} className="px-4 py-2 rounded bg-primary text-black font-bold">Create</button>
+                  finally { setCreatingBattle(false); }
+                }} disabled={creatingBattle} className="px-4 py-2 rounded bg-primary text-black font-bold disabled:opacity-60">
+                  {creatingBattle ? 'Creating...' : 'Create'}
+                </button>
               </div>
             </div>
           )}
@@ -229,6 +235,7 @@ export default function AdminDashboard() {
               <div className="flex justify-end">
                 <button onClick={async ()=>{
                   if (!newPrizeTitle) return toast.error('Title required');
+                  setCreatingPrize(true);
                   try {
                     const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' });
                     const { csrfToken } = await tokenRes.json();
@@ -248,7 +255,10 @@ export default function AdminDashboard() {
                     setShowNewEntityModal(false);
                     setNewPrizeTitle(''); setNewPrizeCode(''); setNewPrizeRevealAt(''); setNewPrizeExpiry(3600);
                   } catch (err) { console.error(err); toast.error('Request failed'); }
-                }} className="bg-primary px-6 py-2 rounded font-bold text-black">Create</button>
+                  finally { setCreatingPrize(false); }
+                }} disabled={creatingPrize} className="bg-primary px-6 py-2 rounded font-bold text-black disabled:opacity-60">
+                  {creatingPrize ? 'Creating...' : 'Create'}
+                </button>
               </div>
             </div>
           </div>
@@ -299,7 +309,9 @@ export default function AdminDashboard() {
               <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Payment Queue <span className="text-primary font-mono ml-2">● {pendingPayments.length} Pending</span></h3>
               <div className="space-y-0 divide-y divide-border">
                 {pendingPayments.length === 0 && <div className="p-6 text-text-dim">No pending manual payments.</div>}
-                {pendingPayments.map((p: any) => (
+                {pendingPayments.map((p: any) => {
+                  const isProcessing = processingTxId === p._id;
+                  return (
                   <div key={p._id} className="flex items-center justify-between py-4">
                     <div>
                       <p className="text-[13px] font-medium text-white">{p.user?.name || p.user?.email || 'Unknown'}</p>
@@ -308,7 +320,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-2">
                       <button onClick={() => setConfirmState({ open: true, title: 'Mark Paid', message: 'Mark this manual payment as paid and generate redeem code?', onConfirm: async () => {
                         setConfirmState((s:any)=>({ ...s, open:false }));
-                        setLoadingAction(true);
+                        setProcessingTxId(p._id);
                         try {
                           const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
                           const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
@@ -319,23 +331,25 @@ export default function AdminDashboard() {
                             setShowCodeModal({ open: true, code: data.code });
                           } else toast.error(data.message || 'Failed');
                         } catch (err) { console.error(err); toast.error('Failed'); }
-                        finally { setLoadingAction(false); }
-                      }, confirmLabel: 'Mark Paid' })} className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all">
-                        {loadingAction ? <LoadingBreadcrumb text="Processing..." /> : <Check className="w-3 h-3" />}
+                        finally { setProcessingTxId(null); }
+                      }, confirmLabel: 'Mark Paid' })} disabled={isProcessing} className="p-2 border border-border rounded hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-60">
+                        {isProcessing ? <LoadingBreadcrumb text="Processing..." /> : <Check className="w-3 h-3" />}
                       </button>
                       <button onClick={() => setConfirmState({ open: true, title: 'Reject Payment', message: 'Reject and remove this pending payment?', onConfirm: async () => {
                         setConfirmState((s:any)=>({ ...s, open:false }));
+                        setProcessingTxId(p._id);
                         const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                         const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
                         if (res.ok) { toast.success('Removed'); setPendingPayments(prev => prev.filter(x => x._id !== p._id)); }
                         else toast.error('Failed');
-                      }, confirmLabel: 'Reject' })} className="p-2 border border-border rounded hover:bg-red-500/10 hover:text-red-500 transition-all">
+                        setProcessingTxId(null);
+                      }, confirmLabel: 'Reject' })} disabled={isProcessing} className="p-2 border border-border rounded hover:bg-red-500/10 hover:text-red-500 transition-all disabled:opacity-60">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
-                  <CodeModal open={showCodeModal.open} code={showCodeModal.code} onClose={()=>setShowCodeModal({open:false})} />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -352,11 +366,18 @@ export default function AdminDashboard() {
                 <div className="flex gap-2">
                   <button onClick={async ()=>{
                     if (!selectedUserId) return toast.error('Select a user');
-                    const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
-                    const res = await fetch(`${API_ROOT}/api/transactions/manual/create/${selectedUserId}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ amount: manualAmount }) });
-                    if (res.ok) { toast.success('Transaction created'); const tx = await res.json(); setPendingPayments(prev=>[tx,...prev]); setSelectedUserId(''); }
-                    else { const err = await res.json(); toast.error(err.message||'Failed'); }
-                  }} className="bg-primary text-black px-6 py-2 rounded">Create</button>
+                    setCreatingManual(true);
+                    try {
+                      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
+                      const res = await fetch(`${API_ROOT}/api/transactions/manual/create/${selectedUserId}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ amount: manualAmount }) });
+                      if (res.ok) { toast.success('Transaction created'); const tx = await res.json(); setPendingPayments(prev=>[tx,...prev]); setSelectedUserId(''); }
+                      else { const err = await res.json(); toast.error(err.message||'Failed'); }
+                    } finally {
+                      setCreatingManual(false);
+                    }
+                  }} disabled={creatingManual} className="bg-primary text-black px-6 py-2 rounded disabled:opacity-60">
+                    {creatingManual ? 'Creating...' : 'Create'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -378,7 +399,7 @@ export default function AdminDashboard() {
                           setConfirmState((s:any)=>({ ...s, open:false }));
                           try {
                             const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
-                            const res = await fetch(`${API_ROOT}/api/skill/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'accept' }) });
+                            const res = await fetch(`${API_ROOT}/api/skills/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'accept' }) });
                             const data = await res.json();
                             if (res.ok) { toast.success(data.message || 'Accepted'); setBattleSubmissions(prev=>prev.filter(x=>x._id!==s._id)); }
                             else { toast.error(data.message || 'Failed'); }
@@ -389,7 +410,7 @@ export default function AdminDashboard() {
                           setConfirmState((s:any)=>({ ...s, open:false }));
                           try {
                             const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
-                            const res = await fetch(`${API_ROOT}/api/skill/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'reject' }) });
+                            const res = await fetch(`${API_ROOT}/api/skills/${s.battle._id}/submissions/${s._id}/evaluate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken || '' }, body: JSON.stringify({ action: 'reject' }) });
                             const data = await res.json();
                             if (res.ok) { toast.success(data.message || 'Rejected'); setBattleSubmissions(prev=>prev.filter(x=>x._id!==s._id)); }
                             else { toast.error(data.message || 'Failed'); }
@@ -437,6 +458,7 @@ export default function AdminDashboard() {
                         <button onClick={() => setConfirmState({ open: true, title: u.access ? 'Revoke Access' : 'Restore Access', message: u.access ? 'Revoke access for this user?' : 'Restore access for this user?', onConfirm: async () => {
                           setConfirmState((s:any)=>({ ...s, open:false }));
                           try {
+                            setTogglingAccessId(u._id);
                             const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                             const res = await fetch(`${API_ROOT}/api/users/${u._id}/access`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken||'' }, body: JSON.stringify({ access: !u.access }) });
                             if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); return toast.error(err.message || 'Failed'); }
@@ -444,7 +466,8 @@ export default function AdminDashboard() {
                             setUsers(prev => prev.map(x => x._id === updated._id ? updated : x));
                             toast.success(updated.access ? 'Access restored' : 'Access revoked');
                           } catch (err) { console.error(err); toast.error('Request failed'); }
-                        }, confirmLabel: u.access ? 'Revoke' : 'Restore' })} className="text-[10px] font-bold uppercase text-primary hover:underline">{u.access ? 'Revoke' : 'Restore'}</button>
+                          finally { setTogglingAccessId(null); }
+                        }, confirmLabel: u.access ? 'Revoke' : 'Restore' })} disabled={togglingAccessId === u._id} className="text-[10px] font-bold uppercase text-primary hover:underline disabled:opacity-60">{u.access ? 'Revoke' : 'Restore'}</button>
                       </div>
                     </td>
                   </tr>
@@ -620,7 +643,9 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {pendingPayments.length > 0 ? (
-                    pendingPayments.map((p: any) => (
+                    pendingPayments.map((p: any) => {
+                      const isProcessing = processingTxId === p._id;
+                      return (
                       <tr key={p._id} className="hover:bg-white/5">
                         <td className="py-4 font-bold">{p.user?.name || p.user?.email || 'Unknown'}</td>
                         <td className="py-4 font-mono text-xs">{p._id}</td>
@@ -629,7 +654,7 @@ export default function AdminDashboard() {
                         <td className="py-4">
                           <div className="flex gap-2">
                             <button onClick={async () => {
-                              setLoadingAction(true);
+                              setProcessingTxId(p._id);
                               try {
                                 const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                                 const res = await fetch(`${API_ROOT}/api/transactions/manual/mark-paid/${p._id}`, { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
@@ -637,13 +662,13 @@ export default function AdminDashboard() {
                                 toast.success('Marked paid');
                                 setPendingPayments(prev => prev.filter(x => x._id !== p._id));
                               } catch (err) { console.error(err); toast.error('Request failed'); }
-                              finally { setLoadingAction(false); }
-                            }} className="text-[10px] font-bold uppercase text-primary hover:underline">
-                              {loadingAction ? <LoadingBreadcrumb text="Verifying..." /> : 'Verify'}
+                              finally { setProcessingTxId(null); }
+                            }} disabled={isProcessing} className="text-[10px] font-bold uppercase text-primary hover:underline disabled:opacity-60">
+                              {isProcessing ? <LoadingBreadcrumb text="Verifying..." /> : 'Verify'}
                             </button>
                             <button onClick={() => setConfirmState({ open: true, title: 'Flag Transaction', message: 'Flag and remove this transaction?', onConfirm: async () => {
                               setConfirmState((s:any)=>({ ...s, open:false }));
-                              setLoadingAction(true);
+                              setProcessingTxId(p._id);
                               try {
                                 const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json();
                                 const res = await fetch(`${API_ROOT}/api/transactions/${p._id}`, { method: 'DELETE', credentials: 'include', headers: { 'x-csrf-token': csrfToken || '' } });
@@ -651,12 +676,13 @@ export default function AdminDashboard() {
                                 toast.success('Flagged/removed');
                                 setPendingPayments(prev => prev.filter(x => x._id !== p._id));
                               } catch (err) { console.error(err); toast.error('Request failed'); }
-                              finally { setLoadingAction(false); }
-                            }, confirmLabel: 'Flag' })} className="text-[10px] font-bold uppercase text-red-500 hover:underline">Flag</button>
+                              finally { setProcessingTxId(null); }
+                            }, confirmLabel: 'Flag' })} disabled={isProcessing} className="text-[10px] font-bold uppercase text-red-500 hover:underline disabled:opacity-60">Flag</button>
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-text-dim">No pending manual payments found.</td>
@@ -696,6 +722,7 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+      <CodeModal open={showCodeModal.open} code={showCodeModal.code} onClose={()=>setShowCodeModal({open:false})} />
       <ConfirmDialog open={confirmState.open} title={confirmState.title} message={confirmState.message} confirmLabel={confirmState.confirmLabel || 'Confirm'} onCancel={() => setConfirmState((s:any)=>({...s, open:false}))} onConfirm={() => { try { confirmState.onConfirm && confirmState.onConfirm(); } catch(e){ console.error(e); } }} />
       <PromptModal open={promptState.open} title={promptState.title} placeholder={promptState.placeholder} initial={promptState.initial} onCancel={() => setPromptState((s:any)=>({...s, open:false}))} onConfirm={(val:any) => { try { promptState.onConfirm && promptState.onConfirm(val); } catch(e){ console.error(e); } }} />
     </div>

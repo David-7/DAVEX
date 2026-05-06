@@ -8,9 +8,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer } from 'http';
 import { Server as IOServer } from 'socket.io';
+import jwt from "jsonwebtoken";
 import authRoutes from "./server/routes/authRoutes.js";
 import dashboardRoutes from "./server/routes/dashboardRoutes.js";
 import lessonRoutes from "./server/routes/lessonRoutes.js";
+import { User } from "./server/models/User.js";
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import csurf from 'csurf';
@@ -25,6 +27,27 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+let JWT_SECRET = process.env.JWT_SECRET || '';
+if (!JWT_SECRET) {
+  if (IS_PROD) {
+    console.error('JWT_SECRET is not set in environment. Aborting in production.');
+    process.exit(1);
+  }
+  console.warn('JWT_SECRET is not set — using development fallback. Set JWT_SECRET in production.');
+  JWT_SECRET = 'dev-secret-change-me';
+}
+
+function getCookieValue(cookieHeader: string | undefined, name: string) {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(';');
+  for (const part of parts) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(rest.join('='));
+  }
+  return null;
+}
 
 async function startServer() {
   const app = express();
@@ -40,7 +63,7 @@ async function startServer() {
 
   // Security Middlewares
   app.use(helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    contentSecurityPolicy: IS_PROD ? undefined : false,
   }));
   // Allow multiple frontend origins (comma-separated in env) for dev and prod.
   const FRONTEND_ORIGINS_RAW = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
@@ -74,8 +97,8 @@ async function startServer() {
     app.use(csurf({
       cookie: {
         httpOnly: true,
-        sameSite: 'none',
-        secure: process.env.NODE_ENV === 'production'
+        sameSite: IS_PROD ? 'none' : 'lax',
+        secure: IS_PROD
       }
     }));
   } catch (err) {
@@ -133,11 +156,26 @@ async function startServer() {
     const io = new IOServer(server, {
       cors: { origin: allowedOrigins, credentials: true }
     });
+    io.use(async (socket, next) => {
+      try {
+        const token = getCookieValue(socket.request.headers.cookie as string | undefined, 'token');
+        if (!token) return next();
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        const user = await User.findById(decoded.id).select('name role access');
+        if (user && user.access !== false) {
+          socket.data.user = { id: user._id, name: user.name, role: user.role };
+        }
+      } catch (err) {
+        // ignore invalid tokens for socket auth
+      }
+      next();
+    });
     app.set('io', io);
     io.on('connection', (socket) => {
       console.log('Socket connected', socket.id);
       // allow client to identify (safer than trusting client-sent userId)
       socket.on('identify', (u) => {
+        if (socket.data?.user) return;
         try { socket.data.user = { id: u?.userId || u?.id || null, name: u?.name || u?.user || null }; }
         catch (e) { socket.data.user = null; }
       });
@@ -163,6 +201,10 @@ async function startServer() {
 
         // basic auth-check: if client provided userId but didn't identify, reject
         const identified = socket.data?.user;
+        if (msg.userId && !identified) {
+          socket.emit('chat:unauthorized', { message: 'missing identity' });
+          return;
+        }
         if (msg.userId && identified && String(msg.userId) !== String(identified.id)) {
           socket.emit('chat:unauthorized', { message: 'user mismatch' });
           return;
@@ -182,8 +224,8 @@ async function startServer() {
         } catch (e) { /* continue if filter fails */ }
 
         const payload = {
-          userId: msg.userId || socket.data?.user?.id || null,
-          user: msg.user || socket.data?.user?.name || 'Anonymous',
+          userId: socket.data?.user?.id || null,
+          user: socket.data?.user?.name || 'Anonymous',
           channel,
           text,
           time: msg.time ? new Date(msg.time) : new Date()

@@ -1,4 +1,5 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 
 export default function CodeModal({ open, code, onClose }: any) {
   if (!open) return null;
@@ -9,7 +10,16 @@ export default function CodeModal({ open, code, onClose }: any) {
         <p className="text-sm text-text-dim mb-4">Share this code with the learner so they can redeem and activate PREMIUM.</p>
         <div className="flex items-center justify-between bg-black/40 border border-border p-3 rounded mb-4">
           <div className="font-mono text-lg">{code}</div>
-          <button onClick={() => { navigator.clipboard?.writeText(code || ''); alert('Copied'); }} className="px-3 py-1 bg-primary text-black rounded">Copy</button>
+          <button
+            onClick={() => {
+              if (!code) return toast.error('No code to copy');
+              navigator.clipboard?.writeText(code);
+              toast.success('Copied');
+            }}
+            className="px-3 py-1 bg-primary text-black rounded"
+          >
+            Copy
+          </button>
         </div>
         <div className="flex justify-end">
           <button onClick={onClose} className="px-4 py-2 rounded border border-border text-text-dim">Close</button>

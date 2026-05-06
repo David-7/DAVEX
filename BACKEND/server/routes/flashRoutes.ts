@@ -4,6 +4,11 @@ import { FlashPrize } from "../models/FlashPrize.js";
 
 const router = express.Router();
 
+function isExpired(prize: any, now: Date) {
+  const expiryTime = new Date(prize.revealAt.getTime() + prize.expirySeconds * 1000);
+  return now > expiryTime;
+}
+
 // Admin creates a flash prize
 router.post('/', protect, authorize('ADMIN'), async (req, res) => {
   try {
@@ -50,17 +55,20 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
 router.get('/active', protect, async (req, res) => {
   try {
     const now = new Date();
-    const prize = await FlashPrize.findOne({ revealAt: { $lte: now }, claimedBy: null }).sort({ revealAt: -1 });
+    const prize = await FlashPrize.findOne({
+      revealAt: { $lte: now },
+      $or: [{ singleWinner: true, claimedBy: null }, { singleWinner: false }]
+    }).sort({ revealAt: -1 });
     // #region agent log
     fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H1',location:'flashRoutes.ts:getActive',message:'Active prize lookup result',data:{hasPrize:Boolean(prize),now:now.toISOString(),prizeId:prize?._id?.toString?.() || null,revealAt:prize?.revealAt?.toISOString?.() || null,expirySeconds:prize?.expirySeconds ?? null,singleWinner:prize?.singleWinner ?? null,claimedBy:prize?.claimedBy?.toString?.() || null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     if (!prize) return res.json({ active: false });
-    const expiryTime = new Date(prize.revealAt.getTime() + prize.expirySeconds * 1000);
     // #region agent log
+    const expiryTime = new Date(prize.revealAt.getTime() + prize.expirySeconds * 1000);
     fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H2',location:'flashRoutes.ts:getActiveExpiryCheck',message:'Active prize expiry evaluation',data:{nowMs:now.getTime(),expiryMs:expiryTime.getTime(),isExpired:now > expiryTime},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
-    if (now > expiryTime) return res.json({ active: false });
-    res.json({ active: true, prize: { id: prize._id, title: prize.title } });
+    if (isExpired(prize, now)) return res.json({ active: false });
+    res.json({ active: true, prize: { id: prize._id, title: prize.title, singleWinner: prize.singleWinner } });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
@@ -70,15 +78,31 @@ router.get('/active', protect, async (req, res) => {
 router.post('/:id/claim', protect, async (req, res) => {
   try {
     const now = new Date();
-    const existingPrize = await FlashPrize.findById(req.params.id).select('_id revealAt expirySeconds singleWinner claimedBy claimedAt');
+    const userId = (req as any).user?._id;
+    if (!userId) return res.status(401).json({ message: 'Not authorized' });
+    const existingPrize = await FlashPrize.findById(req.params.id).select('_id revealAt expirySeconds singleWinner claimedBy claimedAt claimedByList');
+    if (!existingPrize) return res.status(404).json({ message: 'Prize not found' });
+    if (now < existingPrize.revealAt) return res.status(403).json({ message: 'Prize not active yet' });
+    if (isExpired(existingPrize, now)) return res.status(410).json({ message: 'Prize expired' });
     // #region agent log
     fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H2',location:'flashRoutes.ts:claimPreCheck',message:'Claim request pre-check prize state',data:{prizeId:req.params.id,userId:(req as any).user?._id?.toString?.() || null,now:now.toISOString(),hasPrize:Boolean(existingPrize),revealAt:existingPrize?.revealAt?.toISOString?.() || null,expirySeconds:existingPrize?.expirySeconds ?? null,singleWinner:existingPrize?.singleWinner ?? null,claimedBy:existingPrize?.claimedBy?.toString?.() || null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
-    const prize = await FlashPrize.findOneAndUpdate(
-      { _id: req.params.id, claimedBy: null },
-      { claimedBy: (req as any).user?._id, claimedAt: new Date() },
-      { new: true }
-    );
+    let prize: any | null = null;
+    if (existingPrize.singleWinner) {
+      prize = await FlashPrize.findOneAndUpdate(
+        { _id: req.params.id, claimedBy: null },
+        { claimedBy: userId, claimedAt: new Date() },
+        { new: true }
+      );
+    } else {
+      const alreadyClaimed = (existingPrize.claimedByList || []).some((id: any) => String(id) === String(userId));
+      if (alreadyClaimed) return res.status(409).json({ message: 'Already claimed' });
+      prize = await FlashPrize.findByIdAndUpdate(
+        req.params.id,
+        { $addToSet: { claimedByList: userId }, $set: { claimedAt: new Date() } },
+        { new: true }
+      );
+    }
     // #region agent log
     fetch('http://127.0.0.1:7752/ingest/36784df5-29b2-41d0-b2cf-049f8d9baec0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'defed0'},body:JSON.stringify({sessionId:'defed0',runId:String(req.headers['x-debug-run-id'] || 'run1'),hypothesisId:'H3',location:'flashRoutes.ts:claimUpdateResult',message:'Claim update result',data:{prizeId:req.params.id,claimSucceeded:Boolean(prize),singleWinner:prize?.singleWinner ?? existingPrize?.singleWinner ?? null,claimedByAfter:prize?.claimedBy?.toString?.() || null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion

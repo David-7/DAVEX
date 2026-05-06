@@ -1,10 +1,20 @@
 import express from 'express';
+import crypto from 'crypto';
 import { protect, authorize } from '../middleware/auth.ts';
 import { Transaction } from '../models/Transaction.ts';
 import { User } from '../models/User.ts';
 import fetch from 'node-fetch';
 
 const router = express.Router();
+
+async function generateRedeemCode() {
+  for (let i = 0; i < 5; i += 1) {
+    const code = crypto.randomBytes(5).toString('hex').toUpperCase();
+    const exists = await Transaction.findOne({ code }).select('_id');
+    if (!exists) return code;
+  }
+  return crypto.randomBytes(6).toString('hex').toUpperCase();
+}
 
 // Admin: create manual transaction (pending)
 router.post('/manual/create/:userId', protect, authorize('ADMIN'), async (req, res) => {
@@ -34,7 +44,7 @@ router.post('/manual/mark-paid/:txId', protect, authorize('ADMIN'), async (req, 
     const tx = await Transaction.findById(req.params.txId);
     if (!tx) return res.status(404).json({ message: 'Transaction not found' });
     if (tx.status === 'PAID') return res.status(409).json({ message: 'Already paid' });
-    const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const code = await generateRedeemCode();
     tx.status = 'PAID';
     tx.code = code;
     await tx.save();
@@ -70,12 +80,16 @@ router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
 });
 
 // Student: redeem a manual code
-router.post('/redeem-code', protect, async (req, res) => {
+router.post('/redeem-code', protect, async (req: any, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ message: 'Code required' });
-    const tx = await Transaction.findOne({ code, status: 'PAID' });
+    const tx = await Transaction.findOne({ code, status: 'PAID', provider: 'MANUAL' });
     if (!tx) return res.status(404).json({ message: 'Invalid or already redeemed code' });
+    if (!tx.user) return res.status(400).json({ message: 'Code not assigned to a user' });
+    if (String(tx.user) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Code not assigned to this account' });
+    }
     // mark user premium
     const user = await User.findById(tx.user);
     if (!user) return res.status(404).json({ message: 'User not found' });

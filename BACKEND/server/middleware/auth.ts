@@ -20,6 +20,7 @@ export const protect = async (req: any, res: Response, next: NextFunction) => {
     const decoded: any = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.id).select("-password");
     if (!user) return res.status(401).json({ message: "Not authorized" });
+    if (user.access === false) return res.status(403).json({ message: "Access revoked" });
 
     req.user = user;
     next();
