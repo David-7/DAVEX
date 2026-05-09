@@ -34,12 +34,17 @@ export default function Navbar({ user, setUser }: { user: any, setUser: any }) {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
     if (path.startsWith("/#")) {
       const id = path.substring(2);
+      e.preventDefault();
+      setIsOpen(false);
+      if (location.pathname !== "/") {
+        // Navigate to home first, then let the hash apply.
+        navigate(`/${path.substring(1)}`);
+        return;
+      }
       const element = document.getElementById(id);
       if (element) {
-        e.preventDefault();
         element.scrollIntoView({ behavior: "smooth" });
         window.history.pushState(null, "", path);
-        setIsOpen(false);
       }
     }
   };

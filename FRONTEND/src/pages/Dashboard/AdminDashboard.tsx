@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { API_ROOT } from "../../config";
 import { 
   Users, BookOpen, Trophy, CreditCard, Plus, 
@@ -27,7 +26,6 @@ export default function AdminDashboard() {
   const [newPrizeRevealAt, setNewPrizeRevealAt] = useState('');
   const [newPrizeExpiry, setNewPrizeExpiry] = useState(3600);
   const [newPrizeSingleWinner, setNewPrizeSingleWinner] = useState(true);
-  const [manualEmail, setManualEmail] = useState('');
   const [manualAmount, setManualAmount] = useState(250);
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
@@ -48,6 +46,14 @@ export default function AdminDashboard() {
             const sRes = await fetch(`${API_ROOT}/api/skills/submissions`, { credentials: 'include' });
           if (sRes.ok) setBattleSubmissions(await sRes.json());
         } catch (err) { console.warn('Failed fetching submissions', err); }
+        try {
+          const fpRes = await fetch(`${API_ROOT}/api/flash`, { credentials: 'include' });
+          if (fpRes.ok) setActivePrizes(await fpRes.json());
+        } catch (err) { console.warn('Failed fetching flash prizes', err); }
+        try {
+          const sessRes = await fetch(`${API_ROOT}/api/dashboard/sessions`, { credentials: 'include' });
+          if (sessRes.ok) setUpcomingSessions(await sessRes.json());
+        } catch (err) { console.warn('Failed fetching sessions', err); }
       } catch (err) {
         console.error("Admin data fetch failed", err);
       } finally {
@@ -56,6 +62,20 @@ export default function AdminDashboard() {
     };
     fetchAdminData();
   }, []);
+
+  useEffect(() => {
+    if (activeView !== 'chat') return;
+    (async () => {
+      try {
+        const [rRes, fRes] = await Promise.all([
+          fetch(`${API_ROOT}/api/chat/recent`, { credentials: 'include' }),
+          fetch(`${API_ROOT}/api/chat/flagged`, { credentials: 'include' }),
+        ]);
+        if (rRes.ok) setChatRecent(await rRes.json());
+        if (fRes.ok) setChatFlagged(await fRes.json());
+      } catch (err) { console.warn('Chat fetch failed', err); }
+    })();
+  }, [activeView]);
   const [battleSubmissions, setBattleSubmissions] = useState<any[]>([]);
   const [processingTxId, setProcessingTxId] = useState<string | null>(null);
   const [creatingManual, setCreatingManual] = useState(false);
@@ -67,6 +87,8 @@ export default function AdminDashboard() {
   const [showCodeModal, setShowCodeModal] = useState<{ open: boolean; code?: string }>({ open: false });
   const [chatRecent, setChatRecent] = useState<any[]>([]);
   const [chatFlagged, setChatFlagged] = useState<any[]>([]);
+  const [activePrizes, setActivePrizes] = useState<any[]>([]);
+  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
   const [confirmState, setConfirmState] = useState<any>({ open: false, title: '', message: '', onConfirm: null, confirmLabel: 'Confirm' });
   const [promptState, setPromptState] = useState<any>({ open: false, title: '', placeholder: '', initial: '', onConfirm: null });
 
@@ -103,62 +125,6 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
-      {/* Skill Battle View */}
-      {activeView === 'skill-battle' && (
-        <div className="technical-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest">Skill Battles</h3>
-            <button onClick={() => setShowCreateBattle(true)} className="bg-primary/5 text-primary px-4 py-2 rounded text-xs font-bold">New Battle</button>
-          </div>
-          {showCreateBattle && (
-            <div className="border border-border p-4 mb-4 rounded">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input value={newBattle.title} onChange={(e)=>setNewBattle({...newBattle, title:e.target.value})} placeholder="Title" className="p-3 bg-black border border-border rounded" />
-                <input value={newBattle.points} onChange={(e)=>setNewBattle({...newBattle, points: parseInt(e.target.value||'0')})} placeholder="Points" type="number" className="p-3 bg-black border border-border rounded" />
-                <input value={newBattle.startAt} onChange={(e)=>setNewBattle({...newBattle, startAt:e.target.value})} placeholder="StartAt (ISO)" className="p-3 bg-black border border-border rounded" />
-                <input value={newBattle.expireAt} onChange={(e)=>setNewBattle({...newBattle, expireAt:e.target.value})} placeholder="ExpireAt (ISO)" className="p-3 bg-black border border-border rounded" />
-              </div>
-              <textarea value={newBattle.question} onChange={(e)=>setNewBattle({...newBattle, question:e.target.value})} placeholder="Question / Task" className="w-full p-3 bg-black border border-border rounded mt-3" />
-              <div className="flex gap-2 justify-end mt-3">
-                <button onClick={() => setShowCreateBattle(false)} className="px-4 py-2 border border-border rounded">Cancel</button>
-                <button onClick={async () => {
-                  if (!newBattle.title || !newBattle.question) return toast.error('Title and question required');
-                  setCreatingBattle(true);
-                  try {
-                    const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
-                    const res = await fetch(`${API_ROOT}/api/skills`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json','x-csrf-token': csrfToken || '' }, body: JSON.stringify(newBattle) });
-                    if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); throw new Error(err.message||'Failed'); }
-                    const created = await res.json();
-                    toast.success('Skill battle created');
-                    setShowCreateBattle(false);
-                    setNewBattle({ title:'', question:'', startAt:'', expireAt:'', points:10 });
-                  } catch (err:any) { console.error(err); toast.error(err.message||'Create failed'); }
-                  finally { setCreatingBattle(false); }
-                }} disabled={creatingBattle} className="px-4 py-2 rounded bg-primary text-black font-bold disabled:opacity-60">
-                  {creatingBattle ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div>
-            <h4 className="text-xs text-text-dim uppercase mb-3">Recent Submissions</h4>
-            {battleSubmissions.length === 0 ? (
-              <div className="text-text-dim">No submissions yet.</div>
-            ) : (
-              battleSubmissions.map((s:any)=> (
-                <div key={s._id} className="p-3 bg-black/20 rounded mb-2">
-                  <div className="flex justify-between">
-                    <div className="font-bold">{s.battle?.title || 'Battle'}</div>
-                    <div className="text-text-dim text-xs">{new Date(s.createdAt).toLocaleString()}</div>
-                  </div>
-                  <div className="text-sm mt-2">{String(s.answer).slice(0,200)}</div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       {/* Mobile Menu Overlay */}
@@ -289,7 +255,8 @@ export default function AdminDashboard() {
                 <div className="p-2 bg-white/5 rounded text-text-dim">
                   {stat.icon === 'users' && <Users className="w-4 h-4" />}
                   {stat.icon === 'book' && <BookOpen className="w-4 h-4" />}
-                  {stat.icon === 'dollar' && <Trophy className="w-4 h-4" />}
+                  {stat.icon === 'dollar' && <CreditCard className="w-4 h-4" />}
+                  {stat.icon === 'trophy' && <Trophy className="w-4 h-4" />}
                   {stat.icon === 'trending' && <Calendar className="w-4 h-4" />}
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-primary font-mono">
@@ -439,16 +406,21 @@ export default function AdminDashboard() {
               <thead className="text-text-dim uppercase text-[10px] tracking-[0.2em] border-b border-border">
                 <tr>
                   <th className="pb-4">Operator</th>
-                  <th className="pb-4">ID</th>
+                  <th className="pb-4">Email</th>
+                  <th className="pb-4">Admission</th>
                   <th className="pb-4">Package</th>
                   <th className="pb-4">Access</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
+                {users.length === 0 && (
+                  <tr><td colSpan={5} className="py-12 text-center text-text-dim">No registered learners.</td></tr>
+                )}
                 {users.map((u, i) => (
                   <tr key={u._id || i} className="hover:bg-white/5">
                     <td className="py-4 font-bold">{u.name || u.email}</td>
-                    <td className="py-4 font-mono text-xs">{u._id}</td>
+                    <td className="py-4 text-xs text-text-dim">{u.email || '—'}</td>
+                    <td className="py-4 font-mono text-xs">{u.admissionNumber || '—'}</td>
                     <td className="py-4">
                       <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/20 text-primary rounded">{(u.package||'BASIC').toUpperCase()}</span>
                     </td>
@@ -479,11 +451,20 @@ export default function AdminDashboard() {
 
         {activeView === "prizes" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="technical-card bg-primary/10 border-primary">
-              <h4 className="text-primary font-bold mb-2 uppercase text-xs tracking-widest">Active Flash Prize</h4>
-              <p className="text-2xl font-bold mb-4">5GB DATA COUPON</p>
-              <button className="w-full bg-primary text-black font-bold py-2 rounded text-[10px] uppercase tracking-widest">DEPLOY NEW PRIZE</button>
-            </div>
+            {activePrizes.length === 0 && (
+              <div className="technical-card border-dashed col-span-1 md:col-span-2">
+                <h4 className="text-text-dim font-bold mb-2 uppercase text-xs tracking-widest">No Active Flash Prizes</h4>
+                <p className="text-text-dim text-sm mb-4">Queue a new reward to broadcast to all learners.</p>
+              </div>
+            )}
+            {activePrizes.map((p: any) => (
+              <div key={p._id} className={`technical-card ${p.claimedBy ? 'border-border' : 'bg-primary/10 border-primary'}`}>
+                <h4 className="text-primary font-bold mb-2 uppercase text-xs tracking-widest">{p.claimedBy ? 'Claimed' : 'Active Flash Prize'}</h4>
+                <p className="text-2xl font-bold mb-2">{p.title}</p>
+                <p className="font-mono text-[10px] text-text-dim uppercase mt-1">Reveal: {new Date(p.revealAt).toLocaleString()}</p>
+                <p className="font-mono text-[10px] text-text-dim uppercase">{p.singleWinner ? 'Single Winner' : 'Multi Winner'}</p>
+              </div>
+            ))}
             <div className="technical-card border-dashed">
               <button onClick={()=>setShowNewEntityModal(true)} className="w-full h-full flex flex-col items-center justify-center gap-3 text-text-dim hover:text-white transition-all">
                 <Plus className="w-8 h-8" />
@@ -605,24 +586,26 @@ export default function AdminDashboard() {
           <div className="technical-card">
             <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest mb-6">Upcoming Syncs</h3>
             <div className="space-y-4">
-              {[
-                { date: "May 01", title: "Advanced Linux Mastery", venue: "Lab 4", mentor: "Dave" },
-                { date: "May 05", title: "Cloud Architecture", venue: "Zoom 01", mentor: "Sarah" },
-              ].map((s, i) => (
-                <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-black/40 border border-border rounded-lg gap-4">
-                  <div className="flex items-center gap-6">
-                    <div className="text-center min-w-[60px]">
-                      <span className="text-xs text-text-dim block uppercase font-mono">{s.date.split(' ')[0]}</span>
-                      <span className="text-xl font-bold">{s.date.split(' ')[1]}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white">{s.title}</h4>
-                      <p className="text-[10px] text-text-dim uppercase font-mono">{s.venue} • Mentor: {s.mentor}</p>
+              {upcomingSessions.length === 0 && <div className="text-text-dim p-4">No sessions scheduled.</div>}
+              {upcomingSessions.map((s: any, i: number) => {
+                const dt = s.date ? new Date(s.date) : null;
+                const month = dt ? dt.toLocaleString('en-US', { month: 'short' }).toUpperCase() : '';
+                const day = dt ? String(dt.getDate()).padStart(2, '0') : '';
+                return (
+                  <div key={s._id || i} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-black/40 border border-border rounded-lg gap-4">
+                    <div className="flex items-center gap-6">
+                      <div className="text-center min-w-[60px]">
+                        <span className="text-xs text-text-dim block uppercase font-mono">{month}</span>
+                        <span className="text-xl font-bold">{day}</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white">{s.topic || s.title || 'Session'}</h4>
+                        <p className="text-[10px] text-text-dim uppercase font-mono">{s.venue || ''}{s.mentor ? ` • Mentor: ${s.mentor}` : ''}{s.time ? ` • ${s.time}` : ''}</p>
+                      </div>
                     </div>
                   </div>
-                  <button className="text-xs font-bold text-primary hover:underline uppercase tracking-widest font-mono">Reschedule</button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -694,30 +677,58 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeView === "chat" && (
-          <div className="technical-card h-[500px] flex flex-col p-0 overflow-hidden">
-            <div className="flex-grow p-6 overflow-y-auto space-y-4">
-              <div className="text-center py-4">
-                <span className="text-[10px] text-text-dim font-bold uppercase tracking-widest bg-white/5 px-3 py-1 rounded">Moderation Mode Active</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-xs italic">D</div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-white italic">DAVE (MENTOR)</span>
-                    <span className="text-[9px] text-text-dim uppercase font-mono">15:30</span>
-                  </div>
-                  <div className="bg-white/5 border border-border p-3 rounded-lg rounded-tl-none text-sm text-gray-300 max-w-md">
-                    System-wide announcement: New skill battle launching at 17:00 UTC. Prepare your Linux kernels.
-                  </div>
+        {activeView === "skill-battle" && (
+          <div className="technical-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-widest">Skill Battles</h3>
+              <button onClick={() => setShowCreateBattle(true)} className="bg-primary/5 text-primary px-4 py-2 rounded text-xs font-bold">New Battle</button>
+            </div>
+            {showCreateBattle && (
+              <div className="border border-border p-4 mb-4 rounded">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input value={newBattle.title} onChange={(e)=>setNewBattle({...newBattle, title:e.target.value})} placeholder="Title" className="p-3 bg-black border border-border rounded" />
+                  <input value={newBattle.points} onChange={(e)=>setNewBattle({...newBattle, points: parseInt(e.target.value||'0')})} placeholder="Points" type="number" className="p-3 bg-black border border-border rounded" />
+                  <input value={newBattle.startAt} onChange={(e)=>setNewBattle({...newBattle, startAt:e.target.value})} placeholder="StartAt (ISO)" className="p-3 bg-black border border-border rounded" />
+                  <input value={newBattle.expireAt} onChange={(e)=>setNewBattle({...newBattle, expireAt:e.target.value})} placeholder="ExpireAt (ISO)" className="p-3 bg-black border border-border rounded" />
+                </div>
+                <textarea value={newBattle.question} onChange={(e)=>setNewBattle({...newBattle, question:e.target.value})} placeholder="Question / Task" className="w-full p-3 bg-black border border-border rounded mt-3" />
+                <div className="flex gap-2 justify-end mt-3">
+                  <button onClick={() => setShowCreateBattle(false)} className="px-4 py-2 border border-border rounded">Cancel</button>
+                  <button onClick={async () => {
+                    if (!newBattle.title || !newBattle.question) return toast.error('Title and question required');
+                    setCreatingBattle(true);
+                    try {
+                      const tokenRes = await fetch(`${API_ROOT}/api/auth/csrf-token`, { credentials: 'include' }); const { csrfToken } = await tokenRes.json().catch(()=>({}));
+                      const res = await fetch(`${API_ROOT}/api/skills`, { method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json','x-csrf-token': csrfToken || '' }, body: JSON.stringify(newBattle) });
+                      if (!res.ok) { const err = await res.json().catch(()=>({message:'Failed'})); throw new Error(err.message||'Failed'); }
+                      await res.json();
+                      toast.success('Skill battle created');
+                      setShowCreateBattle(false);
+                      setNewBattle({ title:'', question:'', startAt:'', expireAt:'', points:10 });
+                    } catch (err:any) { console.error(err); toast.error(err.message||'Create failed'); }
+                    finally { setCreatingBattle(false); }
+                  }} disabled={creatingBattle} className="px-4 py-2 rounded bg-primary text-black font-bold disabled:opacity-60">
+                    {creatingBattle ? 'Creating...' : 'Create'}
+                  </button>
                 </div>
               </div>
-            </div>
-            <div className="p-4 border-t border-border bg-black">
-              <div className="flex gap-2">
-                <input type="text" placeholder="GLOBAL_BROADCAST..." className="flex-grow bg-white/5 border border-border rounded p-3 text-xs font-mono focus:border-primary focus:outline-none" />
-                <button className="bg-primary text-black px-6 rounded font-bold text-xs uppercase tracking-widest hover:bg-white transition-all">Submit</button>
-              </div>
+            )}
+
+            <div>
+              <h4 className="text-xs text-text-dim uppercase mb-3">Recent Submissions</h4>
+              {battleSubmissions.length === 0 ? (
+                <div className="text-text-dim">No submissions yet.</div>
+              ) : (
+                battleSubmissions.map((s:any)=> (
+                  <div key={s._id} className="p-3 bg-black/20 rounded mb-2">
+                    <div className="flex justify-between">
+                      <div className="font-bold">{s.battle?.title || 'Battle'}</div>
+                      <div className="text-text-dim text-xs">{new Date(s.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div className="text-sm mt-2">{String(s.answer).slice(0,200)}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

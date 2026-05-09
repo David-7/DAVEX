@@ -1,8 +1,8 @@
 import express from 'express';
 import crypto from 'crypto';
-import { protect, authorize } from '../middleware/auth.ts';
-import { Transaction } from '../models/Transaction.ts';
-import { User } from '../models/User.ts';
+import { protect, authorize } from '../middleware/auth.js';
+import { Transaction } from '../models/Transaction.js';
+import { User } from '../models/User.js';
 import fetch from 'node-fetch';
 
 const router = express.Router();

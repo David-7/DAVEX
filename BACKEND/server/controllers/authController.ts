@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { User } from "../models/User.ts";
-import { Points } from "../models/Points.ts";
+import { User } from "../models/User.js";
+import { Points } from "../models/Points.js";
 import { z } from "zod";
 
 let JWT_SECRET = process.env.JWT_SECRET || '';
@@ -47,7 +47,6 @@ export const register = async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      token,
     });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
@@ -78,7 +77,6 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token,
       });
       // Award daily login point (once per UTC day)
       try {

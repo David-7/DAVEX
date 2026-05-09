@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { User } from "../models/User.ts";
+import { User } from "../models/User.js";
 
 let JWT_SECRET = process.env.JWT_SECRET || '';
 if (!JWT_SECRET) {

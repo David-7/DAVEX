@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   User as UserIcon, BookOpen, Calendar, Trophy, Zap, 
   ChevronRight, CheckCircle2, AlertCircle, Award, 
-  ExternalLink, Download, MessageSquare, History, Gift
+  Download, MessageSquare, History, Gift
 } from "lucide-react";
 import ProgressChart from "../../components/Dashboard/ProgressChart.tsx";
 import LessonUnits from "../../components/Dashboard/LessonUnits.tsx";
@@ -463,25 +463,10 @@ export default function StudentDashboard({ user: initialUser }: { user: any }) {
           )}
 
           {activeTab === "materials" && (
-            <motion.div key="materials" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { title: "Linux Mastery PDF", size: "4.2 MB", type: "PDF", date: "Apr 20" },
-                { title: "Network Config Guide", size: "1.8 MB", type: "DOCX", date: "Apr 18" },
-                { title: "Cheat Sheet: NMAP", size: "512 KB", type: "IMAGE", date: "Apr 25" },
-              ].map((m, i) => (
-                <div key={i} className="technical-card flex items-center justify-between group cursor-pointer hover:border-primary transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white/5 rounded text-primary group-hover:bg-primary group-hover:text-black transition-all">
-                      <Download className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white mb-1">{m.title}</h4>
-                      <p className="text-[10px] text-text-dim uppercase font-mono">{m.type} • {m.size}</p>
-                    </div>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-text-dim group-hover:text-white" />
-                </div>
-              ))}
+            <motion.div key="materials" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="technical-card text-center py-16">
+              <Download className="w-8 h-8 mx-auto text-text-dim mb-4" />
+              <h3 className="text-sm font-bold text-white mb-2">No Resources Yet</h3>
+              <p className="text-text-dim text-xs uppercase font-mono tracking-widest">Course materials will appear here once mentors upload them.</p>
             </motion.div>
           )}
 
