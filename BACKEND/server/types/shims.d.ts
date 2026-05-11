@@ -3,7 +3,6 @@ declare module 'xss-clean';
 declare module 'csurf';
 declare module 'express-mongo-sanitize';
 declare module 'vite';
-declare module 'xss-clean';
 declare module 'express-rate-limit';
 declare module 'cookie-parser';
 declare module 'node-fetch';

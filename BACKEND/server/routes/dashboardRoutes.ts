@@ -117,9 +117,9 @@ router.get('/leaderboard', protect, async (req, res) => {
 });
 
 router.get('/sessions', protect, async (req, res) => {
-  res.json([
-    { date: '2026-05-10', time: '10:00', venue: 'Block A', mentor: 'Mentor X', topic: 'Linux Lab' },
-  ]);
+  // Sessions are not yet stored in the database; return an empty list so the
+  // frontend can render an empty state until a Session model is introduced.
+  res.json([]);
 });
 
 router.get("/admin", protect, authorize("ADMIN"), (req, res) => {

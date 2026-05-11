@@ -1,20 +1,28 @@
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const data = [
-  { name: 'Mon', progress: 40 },
-  { name: 'Tue', progress: 45 },
-  { name: 'Wed', progress: 38 },
-  { name: 'Thu', progress: 52 },
-  { name: 'Fri', progress: 61 },
-  { name: 'Sat', progress: 58 },
-  { name: 'Sun', progress: 70 },
-];
+type Point = { name: string; progress: number };
 
-export default function ProgressChart() {
+interface ProgressChartProps {
+  data?: Point[];
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function emptyWeek(): Point[] {
+  const today = new Date();
+  return Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    return { name: DAY_NAMES[d.getDay()], progress: 0 };
+  });
+}
+
+export default function ProgressChart({ data }: ProgressChartProps) {
+  const chartData = data && data.length > 0 ? data : emptyWeek();
   return (
     <div className="h-[300px] w-full mt-4">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
+        <AreaChart data={chartData}>
           <defs>
             <linearGradient id="colorProgress" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#00B851" stopOpacity={0.3}/>

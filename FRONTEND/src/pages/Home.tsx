@@ -1,8 +1,32 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { ArrowRight, ShieldCheck, Zap, Globe, Sparkles, Check, Mail, Phone, MapPin } from "lucide-react";
 
+const CONTACT_EMAIL = "icursoride@gmail.com";
+
 export default function Home() {
+  const location = useLocation();
+  const [contactSubject, setContactSubject] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const id = location.hash.replace("#", "");
+    const el = document.getElementById(id);
+    if (el) {
+      // small timeout so the section has mounted
+      setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }, [location.hash]);
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const subject = encodeURIComponent(contactSubject || "DAVEX Inquiry");
+    const body = encodeURIComponent(contactMessage || "");
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+  };
+
   const plans = [
     {
       name: "Basic",
@@ -301,18 +325,22 @@ export default function Home() {
             </div>
 
             <div className="technical-card border-primary/20 bg-primary/5 p-8">
-              <form className="space-y-4">
+              <form onSubmit={handleContactSubmit} className="space-y-4">
                 <input 
                   type="text" 
                   placeholder="SUBJECT_LINE/ ABOUT"
+                  value={contactSubject}
+                  onChange={(e) => setContactSubject(e.target.value)}
                   className="w-full bg-black border border-border rounded p-4 text-xs font-mono text-white focus:border-primary focus:outline-none"
                 />
                 <textarea 
                   rows={4}
                   placeholder="YOUR_MESSAGE"
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
                   className="w-full bg-black border border-border rounded p-4 text-xs font-mono text-white focus:border-primary focus:outline-none"
                 />
-                <button className="w-full bg-primary text-black font-bold py-4 rounded text-xs uppercase tracking-widest font-mono">
+                <button type="submit" className="w-full bg-primary text-black font-bold py-4 rounded text-xs uppercase tracking-widest font-mono hover:bg-white transition-all">
                   SEND MESSAGE
                 </button>
               </form>

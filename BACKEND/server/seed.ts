@@ -20,11 +20,18 @@ async function seed() {
     await User.deleteMany({});
     await LessonUnit.deleteMany({});
 
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || process.env.SEED_USER_PASSWORD;
+    const studentPassword = process.env.SEED_STUDENT_PASSWORD;
+    if (!adminPassword || !studentPassword) {
+      console.error('Seed requires SEED_ADMIN_PASSWORD and SEED_STUDENT_PASSWORD env vars to avoid hardcoded credentials.');
+      process.exit(1);
+    }
+
     // Create Admin
     await User.create({
       name: "Dave Admin",
-      email: "wanbrossmedia@gmail.com",
-      password: process.env.SEED_USER_PASSWORD || "DavexLms##.7",
+      email: process.env.SEED_ADMIN_EMAIL || "wanbrossmedia@gmail.com",
+      password: adminPassword,
       role: "ADMIN",
       admissionNumber: "000A/1000",
       package: "PREMIUM"
@@ -33,8 +40,8 @@ async function seed() {
     // Create Student
     await User.create({
       name: "Alex Johnson",
-      email: "alex@davex.lms",
-      password: "password123",
+      email: process.env.SEED_STUDENT_EMAIL || "alex@davex.lms",
+      password: studentPassword,
       role: "STUDENT",
       admissionNumber: "025J/1600",
       package: "BASIC"

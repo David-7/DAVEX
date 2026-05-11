@@ -1,17 +1,25 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { useState, useEffect } from "react";
+import { Suspense, lazy, useState, useEffect } from "react";
 import { API_ROOT } from "./config";
 import Navbar from "./components/Navbar.tsx";
 import Footer from "./components/Footer.tsx";
 import Home from "./pages/Home.tsx";
-import Login from "./pages/Login.tsx";
-import Register from "./pages/Register.tsx";
-import ForgotPassword from "./pages/ForgotPassword.tsx";
-import StudentDashboard from "./pages/Dashboard/StudentDashboard.tsx";
-import AdminDashboard from "./pages/Dashboard/AdminDashboard.tsx";
 
-// Simple Auth Context mock for now - will expand later
+const Login = lazy(() => import("./pages/Login.tsx"));
+const Register = lazy(() => import("./pages/Register.tsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.tsx"));
+const StudentDashboard = lazy(() => import("./pages/Dashboard/StudentDashboard.tsx"));
+const AdminDashboard = lazy(() => import("./pages/Dashboard/AdminDashboard.tsx"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center bg-black text-primary font-mono uppercase tracking-[0.2em]">
+      Loading_Module...
+    </div>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,21 +52,22 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         <Navbar user={user} setUser={setUser} />
         <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login setUser={setUser} />} />
-            <Route path="/register" element={<Register setUser={setUser} />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            
-            <Route 
-              path="/dashboard" 
-              element={
-                user ? (
-                  user.role === "ADMIN" ? <AdminDashboard /> : <StudentDashboard user={user} />
-                ) : <Navigate to="/login" />
-              } 
-            />
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login setUser={setUser} />} />
+              <Route path="/register" element={<Register setUser={setUser} />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route 
+                path="/dashboard" 
+                element={
+                  user ? (
+                    user.role === "ADMIN" ? <AdminDashboard /> : <StudentDashboard user={user} />
+                  ) : <Navigate to="/login" />
+                } 
+              />
+            </Routes>
+          </Suspense>
         </main>
         <Footer />
         <Toaster position="top-right" />
